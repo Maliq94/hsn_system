@@ -3,11 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
-/// This model has been renamed to 'Renamedcase' during introspection, because the original name 'case' is reserved.
 model Renamedcase {
   id             String           @id
   type           String
@@ -32,22 +31,21 @@ model caseassignment {
   caseId      String
   userId      String
   createdAt   DateTime    @default(now())
-  Renamedcase Renamedcase @relation(fields: [caseId], references: [id], onDelete: Cascade, map: "CaseAssignment_caseId_fkey")
-  user        user        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CaseAssignment_userId_fkey")
+  Renamedcase Renamedcase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  user        user        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([caseId, userId], map: "CaseAssignment_caseId_userId_key")
-  @@index([userId], map: "CaseAssignment_userId_fkey")
+  @@unique([caseId, userId])
 }
 
 model city {
   id        String   @id
-  name      String   @unique(map: "City_name_key")
+  name      String   @unique
   createdAt DateTime @default(now())
 }
 
 model committee {
   id        String   @id
-  name      String   @unique(map: "Committee_name_key")
+  name      String   @unique
   createdAt DateTime @default(now())
 }
 
@@ -57,7 +55,7 @@ model campaign {
   city        String
   status      String           @default("ACTIVE")
   visibility  String           @default("PRIVATE")
-  description String?          @db.Text
+  description String?
   isDefault   Boolean          @default(false)
   createdAt   DateTime         @default(now())
   members     campaignmember[]
@@ -76,7 +74,6 @@ model campaignmember {
   user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([campaignId, userId])
-  @@index([userId])
   @@map("campaignmember")
 }
 
@@ -86,9 +83,9 @@ model cemetery {
   campaignId String
   lat        Float?
   lng        Float?
-  notes      String?  @db.Text
-  images     String?  @db.LongText
-  voiceData  String?  @db.LongText
+  notes      String?
+  images     String?
+  voiceData  String?
   status     String   @default("PENDING")
   addedBy    String
   createdAt  DateTime @default(now())
@@ -108,7 +105,7 @@ model user {
   createdAt      DateTime         @default(now())
   committee      String?
   phone          String?
-  photo          String?          @db.LongText
+  photo          String?
   status         String           @default("ACTIVE")
   whatsapp       String?
   password       String?
@@ -124,17 +121,17 @@ model visit {
   caseId      String?
   lat         Float
   lng         Float
-  notes       String?      @db.Text
+  notes       String?
   timestamp   DateTime     @default(now())
-  images      String?      @db.LongText
-  videos      String?      @db.LongText
-  voiceData   String?      @db.LongText
-  Renamedcase Renamedcase? @relation(fields: [caseId], references: [id], onDelete: Cascade, map: "Visit_caseId_fkey")
+  images      String?
+  videos      String?
+  voiceData   String?
+  Renamedcase Renamedcase? @relation(fields: [caseId], references: [id], onDelete: Cascade)
   cemetery    cemetery?    @relation(fields: [cemeteryId], references: [id], onDelete: Cascade)
   cemeteryId  String?
-  user        user         @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Visit_userId_fkey")
+  user        user         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([caseId], map: "Visit_caseId_fkey")
+  @@index([caseId])
   @@index([cemeteryId])
-  @@index([userId], map: "Visit_userId_fkey")
+  @@index([userId])
 }
