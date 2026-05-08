@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Raw Mobile Tracker</title>
+  <style>
+    body { font-family: sans-serif; background-color: #0f172a; color: white; text-align: center; padding: 20px; box-sizing: border-box; }
+    input, button { padding: 15px; font-size: 18px; border-radius: 8px; border: none; box-sizing: border-box; width: 100%; max-width: 300px; margin-bottom: 15px; }
+    input { background-color: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); }
+    button { background-color: #3b82f6; color: white; font-weight: bold; cursor: pointer; }
+    .hidden { display: none !important; }
+    .circle-btn { width: 250px; height: 250px; border-radius: 50%; background-color: #10b981; margin: 30px auto; font-size: 32px; box-shadow: 0 0 40px rgba(16, 185, 129, 0.4); }
+  </style>
+</head>
+<body>
+  <div id="login-screen">
+    <h1>Tracker Gateway</h1>
+    <p style="color: #94a3b8; margin-bottom: 30px;">(Vanilla Fallback Mode)</p>
+    <div style="display:flex; flex-direction:column; align-items:center;">
+      <input type="text" id="username" placeholder="Enter Name" autocomplete="off" />
+      <button onclick="doLogin()" id="login-btn">Secure Login</button>
+      <p id="login-error" style="color:#ef4444; margin-top:20px;"></p>
+    </div>
+  </div>
+
+  <div id="tracker-screen" class="hidden">
+    <h1>GPS Tracking Active</h1>
+    <p id="user-display" style="color: #94a3b8; margin-bottom:40px;"></p>
+    
+    <button onclick="doCheckIn()" class="circle-btn" id="checkin-btn">CHECK IN</button>
+    <p id="tracker-status" style="margin-top:20px; min-height:40px; font-weight:bold;"></p>
+    
+    <br><br>
+    <button onclick="doLogout()" style="background:transparent; border: 1px solid #ef4444; color: #ef4444; font-size: 14px; width: 100px;">Logout</button>
+  </div>
+
+  <script>
+    var currentUser = null;
+
+    window.onload = function() {
+      try {
+        var saved = localStorage.getItem('vanilla_user');
+        if (saved) {
+          currentUser = JSON.parse(saved);
+          showTracker();
+        }
+      } catch(e) { }
+    };
+
+    function showTracker() {
+      document.getElementById('login-screen').classList.add('hidden');
+      document.getElementById('tracker-screen').classList.remove('hidden');
+      document.getElementById('user-display').innerText = "Logged in as " + currentUser.name;
+    }
+
+    function doLogin() {
+      var val = document.getElementById('username').value.trim();
+      if(!val) { document.getElementById('login-error').innerText = 'Please type a name.'; return; }
+      
+      document.getElementById('login-btn').innerText = 'Loading...';
+      document.getElementById('login-btn').disabled = true;
+
+      fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: val })
+      })
+      .then(function(res) {
+        return res.json().then(function(data) {
+          if (!res.ok || data.error) throw new Error(data.error || 'Failed');
+          return data;
+        });
+      })
+      .then(function(data) {
+        currentUser = data;
+        localStorage.setItem('vanilla_user', JSON.stringify(data));
+        showTracker();
+      })
+      .catch(function(err) {
+        document.getElementById('login-error').innerText = 'Error: ' + err.message;
+        document.getElementById('login-btn').innerText = 'Secure Login';
+        document.getElementById('login-btn').disabled = false;
+      });
+    }
+
+    function doCheckIn() {
+      var btn = document.getElementById('checkin-btn');
+      var status = document.getElementById('tracker-status');
+      
+      btn.innerText = 'GPS...';
+      btn.disabled = true;
+      status.innerText = 'Requesting hardware location...';
+      
+      navigator.geolocation.getCurrentPosition(
+        function(pos) {
+          fetch('/api/visits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: currentUser.id, lat: pos.coords.latitude, lng: pos.coords.longitude })
+          })
+          .then(function(res) {
+            btn.innerText = 'CHECK IN';
+            btn.disabled = false;
+            if (res.ok) status.innerText = '✅ Coordinates Logged to Database!';
+            else status.innerText = '❌ Sync Failed!';
+          })
+          .catch(function() {
+            btn.innerText = 'CHECK IN';
+            btn.disabled = false;
+            status.innerText = '⚠️ Network offline.';
+          });
+        },
+        function(err) {
+          btn.innerText = 'CHECK IN';
+          btn.disabled = false;
+          status.innerText = '❌ GPS Error: ' + err.message;
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+
+    function doLogout() {
+      localStorage.clear();
+      location.reload();
+    }
+  </script>
+</body>
+</html>

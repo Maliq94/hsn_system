@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+/// This model has been renamed to 'Renamedcase' during introspection, because the original name 'case' is reserved.
+model Renamedcase {
+  id             String           @id
+  type           String
+  description    String?
+  lat            Float?
+  lng            Float?
+  status         String           @default("OPEN")
+  createdAt      DateTime         @default(now())
+  title          String?          @default("حالة غير معنونة")
+  city           String?          @default("طرابلس")
+  campaignId     String?
+  campaign       campaign?        @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  caseassignment caseassignment[]
+  visit          visit[]
+
+  @@index([campaignId])
+  @@map("case")
+}
+
+model caseassignment {
+  id          String      @id
+  caseId      String
+  userId      String
+  createdAt   DateTime    @default(now())
+  Renamedcase Renamedcase @relation(fields: [caseId], references: [id], onDelete: Cascade, map: "CaseAssignment_caseId_fkey")
+  user        user        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "CaseAssignment_userId_fkey")
+
+  @@unique([caseId, userId], map: "CaseAssignment_caseId_userId_key")
+  @@index([userId], map: "CaseAssignment_userId_fkey")
+}
+
+model city {
+  id        String   @id
+  name      String   @unique(map: "City_name_key")
+  createdAt DateTime @default(now())
+}
+
+model committee {
+  id        String   @id
+  name      String   @unique(map: "Committee_name_key")
+  createdAt DateTime @default(now())
+}
+
+model campaign {
+  id          String           @id
+  name        String
+  city        String
+  status      String           @default("ACTIVE")
+  visibility  String           @default("PRIVATE")
+  description String?          @db.Text
+  isDefault   Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  members     campaignmember[]
+  cemeteries  cemetery[]
+  cases       Renamedcase[]
+
+  @@map("campaign")
+}
+
+model campaignmember {
+  id         String   @id
+  campaignId String
+  userId     String
+  createdAt  DateTime @default(now())
+  campaign   campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user       user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([userId])
+  @@map("campaignmember")
+}
+
+model cemetery {
+  id         String   @id
+  name       String
+  campaignId String
+  lat        Float?
+  lng        Float?
+  notes      String?  @db.Text
+  images     String?  @db.LongText
+  voiceData  String?  @db.LongText
+  status     String   @default("PENDING")
+  addedBy    String
+  createdAt  DateTime @default(now())
+  campaign   campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user       user     @relation(fields: [addedBy], references: [id])
+  visits     visit[]
+
+  @@index([campaignId])
+  @@index([addedBy])
+  @@map("cemetery")
+}
+
+model user {
+  id             String           @id
+  role           String           @default("SPECIALIST")
+  name           String?
+  createdAt      DateTime         @default(now())
+  committee      String?
+  phone          String?
+  photo          String?          @db.LongText
+  status         String           @default("ACTIVE")
+  whatsapp       String?
+  password       String?
+  caseassignment caseassignment[]
+  visit          visit[]
+  campaignmember campaignmember[]
+  cemetery       cemetery[]
+}
+
+model visit {
+  id          String       @id
+  userId      String
+  caseId      String?
+  lat         Float
+  lng         Float
+  notes       String?      @db.Text
+  timestamp   DateTime     @default(now())
+  images      String?      @db.LongText
+  videos      String?      @db.LongText
+  voiceData   String?      @db.LongText
+  Renamedcase Renamedcase? @relation(fields: [caseId], references: [id], onDelete: Cascade, map: "Visit_caseId_fkey")
+  cemetery    cemetery?    @relation(fields: [cemeteryId], references: [id], onDelete: Cascade)
+  cemeteryId  String?
+  user        user         @relation(fields: [userId], references: [id], onDelete: Cascade, map: "Visit_userId_fkey")
+
+  @@index([caseId], map: "Visit_caseId_fkey")
+  @@index([cemeteryId])
+  @@index([userId], map: "Visit_userId_fkey")
+}
