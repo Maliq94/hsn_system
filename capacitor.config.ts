@@ -5,10 +5,7 @@ const config: CapacitorConfig = {
   appName: 'HSN',
   webDir: 'public',
   server: {
-    // UPDATED: Point to your PC's IP for physical phone testing
-    // Ensure phone is on same Wi-Fi as 192.168.0.103
-    url: 'http://192.168.0.103:3000/mobile',
-    cleartext: true
+    url: 'https://hsn-system-e265.vercel.app/mobile',
   }
 };
 

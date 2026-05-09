@@ -1,4 +1,5 @@
 'use client'
+import { App } from '@capacitor/app'
 import { Preferences } from '@capacitor/preferences'
 import { LocalNotifications } from '@capacitor/local-notifications'
 import { Geolocation } from '@capacitor/geolocation'
@@ -47,6 +48,34 @@ export default function MobileSpecialistPage() {
     };
     restoreSession();
   }, [])
+
+  // Android Back Button Navigation Logic
+  useEffect(() => {
+    const handleBackButton = async () => {
+      // 1. Close Detail Viewers
+      if (focusedCase) { setFocusedCase(null); return; }
+      if (focusedCemetery) { setFocusedCemetery(null); return; }
+      if (focusedCampaign) { setFocusedCampaign(null); return; }
+      
+      // 2. Close Form Modals
+      if (addingNewOp) { setAddingNewOp(false); return; }
+      if (addingCemetery) { setAddingCemetery(false); return; }
+
+      // 3. Navigate back to Dashboard if in other tabs
+      if (activeTab !== 'DASHBOARD') {
+        setActiveTab('DASHBOARD');
+        return;
+      }
+
+      // 4. Default: Exit App
+      App.exitApp();
+    };
+
+    const backListener = App.addListener('backButton', handleBackButton);
+    return () => {
+      backListener.then(l => l.remove());
+    };
+  }, [focusedCase, focusedCemetery, focusedCampaign, addingNewOp, addingCemetery, activeTab]);
 
   useEffect(() => {
     if (!activeUser) return;
