@@ -5,6 +5,7 @@ import MembersView from '@/components/MembersView'
 import CommitteesView from '@/components/CommitteesView'
 import CitiesView from '@/components/CitiesView'
 import CasesView from '@/components/CasesView'
+import CemeteriesView from '@/components/CemeteriesView'
 import CampaignsView from '@/components/CampaignsView'
 
 const Map = dynamic(() => import('@/components/Map'), { ssr: false })
@@ -12,7 +13,7 @@ const Map = dynamic(() => import('@/components/Map'), { ssr: false })
 export default function TacticalDashboard({ user, members = [], cases, visits, stats, logout, onRefresh }) {
   const [selectedEntity, setSelectedEntity] = useState(null)
   const [entityType, setEntityType] = useState('')
-  const [activeView, setActiveView] = useState('MAP') // 'MAP' | 'MEMBERS' | 'CASES' | 'COMMITTEES' | 'CITIES'
+  const [activeView, setActiveView] = useState('MAP') // 'MAP' | 'MEMBERS' | 'CASES' | 'CEMETERIES' | 'COMMITTEES' | 'CITIES'
   const [mapViewMode, setMapViewMode] = useState('BOTH') // 'CASES' | 'CEMETERIES' | 'BOTH'
   const [labelMode, setLabelMode] = useState(0); // 0-3 modes
   const [floatingWindows, setFloatingWindows] = useState([]);
@@ -67,7 +68,7 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
   const campaignCases = cases.filter(c => c.campaignId && (selectedCampaignId === 'ALL' || c.campaignId === selectedCampaignId));
   const campaignVisits = visits.filter(v => 
     (v.case?.campaignId && (selectedCampaignId === 'ALL' || v.case.campaignId === selectedCampaignId)) || 
-    (v.cemeteryId && (selectedCampaignId === 'ALL' || visits.find(v2 => v2.cemeteryId === v.cemeteryId)?.cemetery?.campaignId === selectedCampaignId))
+    (v.cemetery?.campaignId && (selectedCampaignId === 'ALL' || v.cemetery.campaignId === selectedCampaignId))
   );
 
   // Derive active drawer data robustly
@@ -86,7 +87,7 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
   const activeSpecialist = (!selectedEntity) ? null : (
     entityType === 'visit' 
       ? selectedEntity.user 
-      : (entityType === 'cemetery' ? selectedEntity.user : (activeCase?.assignments?.[0]?.user || null))
+      : (activeVisits.length > 0 ? activeVisits.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp))[0].user : (selectedEntity.user || null))
   );
 
   // Gather media arrays securely without crashing
@@ -212,6 +213,7 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
           <a className={`h-full flex items-center font-['Cairo'] tracking-tight text-xs uppercase ${activeView === 'COMMITTEES' ? 'text-[#00E5FF] border-b border-[#00E5FF]' : 'text-slate-500 hover:text-[#00E5FF] border-b border-transparent'} pb-1 transition-all cursor-pointer px-2`} onClick={() => setActiveView('COMMITTEES')}>اللجان ({committees.length})</a>
           <a className={`h-full flex items-center font-['Cairo'] tracking-tight text-xs uppercase ${activeView === 'CITIES' ? 'text-[#00E5FF] border-b border-[#00E5FF]' : 'text-slate-500 hover:text-[#00E5FF] border-b border-transparent'} pb-1 transition-all cursor-pointer px-2`} onClick={() => setActiveView('CITIES')}>المدن ({cities.length})</a>
           <a className={`h-full flex items-center font-['Cairo'] tracking-tight text-xs uppercase ${activeView === 'CASES' ? 'text-[#00E5FF] border-b border-[#00E5FF]' : 'text-slate-500 hover:text-[#00E5FF] border-b border-transparent'} pb-1 transition-all cursor-pointer px-2`} onClick={() => setActiveView('CASES')}>الحالات ({cases.length})</a>
+          <a className={`h-full flex items-center font-['Cairo'] tracking-tight text-xs uppercase ${activeView === 'CEMETERIES' ? 'text-[#10b981] border-b border-[#10b981]' : 'text-slate-500 hover:text-[#10b981] border-b border-transparent'} pb-1 transition-all cursor-pointer px-2`} onClick={() => setActiveView('CEMETERIES')}>المقابر</a>
         </div>
         
         <div className="flex items-center gap-4">
@@ -262,6 +264,10 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
           <a className={`flex flex-col items-center justify-center text-[#00E5FF] ${activeView === 'CASES' ? 'bg-[#00E5FF]/5 border-l-2 border-[#00E5FF] scale-95' : 'bg-transparent text-slate-600 hover:text-[#00E5FF] hover:bg-white/5'} w-full py-4 duration-150 cursor-pointer group`} onClick={() => { setDrillDownFilter(''); setActiveView('CASES'); }}>
             <span className={`material-symbols-outlined mb-1 group-hover:scale-110 transition-transform ${activeView === 'CASES' && 'icon-fill'}`}>location_city</span>
             <span className="font-['Cairo'] text-[11px] font-bold tracking-wider pt-1">الحالات</span>
+          </a>
+          <a className={`flex flex-col items-center justify-center text-[#10b981] ${activeView === 'CEMETERIES' ? 'bg-[#10b981]/5 border-l-2 border-[#10b981] scale-95' : 'bg-transparent text-slate-600 hover:text-[#10b981] hover:bg-white/5'} w-full py-4 duration-150 cursor-pointer group`} onClick={() => { setDrillDownFilter(''); setActiveView('CEMETERIES'); }}>
+            <span className={`material-symbols-outlined mb-1 group-hover:scale-110 transition-transform ${activeView === 'CEMETERIES' && 'icon-fill'}`}>mosque</span>
+            <span className="font-['Cairo'] text-[11px] font-bold tracking-wider pt-1">المقابر</span>
           </a>
 
           <div className="w-full h-px bg-[#2D3339] my-2"></div>
@@ -533,6 +539,7 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
       {activeView === 'COMMITTEES' && <CommitteesView committees={committees} members={members} onRefresh={refreshData} onViewMembers={(c) => { setDrillDownFilter(c); setActiveView('MEMBERS'); }} />}
       {activeView === 'CITIES' && <CitiesView cities={cities} cases={campaignCases} onRefresh={refreshData} onViewCases={(c) => { setDrillDownFilter(c); setActiveView('CASES'); }} />}
       {activeView === 'CASES' && <CasesView cases={campaignCases} members={members} cities={cities} campaigns={campaigns} onRefresh={refreshData} initialCity={drillDownFilter} />}
+      {activeView === 'CEMETERIES' && <CemeteriesView campaigns={filteredCampaigns} onRefresh={refreshData} />}
       {activeView === 'CAMPAIGNS' && <CampaignsView campaigns={campaigns} members={members} cities={cities} onRefresh={refreshData} />}
 
       {/* FULLSCREEN LIGHTBOX */}

@@ -21,7 +21,13 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json()
+    console.log('CREATE CEMETERY REQUEST:', body)
     const { name, campaignId, lat, lng, notes, images, voiceData, addedBy } = body
+
+    if (!name || !campaignId || !addedBy) {
+      console.error('CREATE CEMETERY ERR: Missing required fields');
+      return Response.json({ error: 'Missing required fields' }, { status: 400 })
+    }
  
     const cemetery = await prisma.cemetery.create({
       data: {
@@ -38,9 +44,10 @@ export async function POST(request) {
       },
       include: { user: true, campaign: true }
     })
+    console.log('CEMETERY CREATED SUCCESSFULLY:', cemetery.id)
     return Response.json(cemetery)
   } catch (err) {
-    console.error('CREATE CEMETERY ERR:', err)
+    console.error('CREATE CEMETERY CRITICAL ERR:', err)
     return Response.json({ error: err.message }, { status: 500 })
   }
 }

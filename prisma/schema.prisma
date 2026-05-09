@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Renamedcase {
-  id             String           @id
+  id             String           @id @default(cuid())
   type           String
   description    String?
   lat            Float?
@@ -27,7 +27,7 @@ model Renamedcase {
 }
 
 model caseassignment {
-  id          String      @id
+  id          String      @id @default(cuid())
   caseId      String
   userId      String
   createdAt   DateTime    @default(now())
@@ -38,19 +38,19 @@ model caseassignment {
 }
 
 model city {
-  id        String   @id
+  id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
 }
 
 model committee {
-  id        String   @id
+  id        String   @id @default(cuid())
   name      String   @unique
   createdAt DateTime @default(now())
 }
 
 model campaign {
-  id          String           @id
+  id          String           @id @default(cuid())
   name        String
   city        String
   status      String           @default("ACTIVE")
@@ -66,7 +66,7 @@ model campaign {
 }
 
 model campaignmember {
-  id         String   @id
+  id         String   @id @default(cuid())
   campaignId String
   userId     String
   createdAt  DateTime @default(now())
@@ -78,7 +78,7 @@ model campaignmember {
 }
 
 model cemetery {
-  id         String   @id
+  id         String   @id @default(cuid())
   name       String
   campaignId String
   lat        Float?
@@ -99,7 +99,7 @@ model cemetery {
 }
 
 model user {
-  id             String           @id
+  id             String           @id @default(cuid())
   role           String           @default("SPECIALIST")
   name           String?
   createdAt      DateTime         @default(now())
@@ -116,7 +116,7 @@ model user {
 }
 
 model visit {
-  id          String       @id
+  id          String       @id @default(cuid())
   userId      String
   caseId      String?
   lat         Float

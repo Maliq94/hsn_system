@@ -49,22 +49,28 @@ const createSpecialistIcon = (visit, labelMode) => {
   
   const memberName = visit.user?.name || 'مختص';
   const committee = visit.user?.committee || 'لجنة عامة';
-  const caseName = visit.case?.title || 'حالة ميدانية';
+  const entityName = visit.case?.title || visit.cemetery?.name || 'مهمة ميدانية';
   const timeStr = new Date(visit.timestamp).toLocaleString('ar-LY', { hour: '2-digit', minute: '2-digit' });
 
   let labelText = '';
   switch(labelMode) {
     case 0: labelText = `${memberName} / ${committee}`; break;
-    case 1: labelText = caseName; break;
-    case 2: labelText = `${caseName} - ${memberName} / ${committee}`; break;
-    case 3: labelText = `${caseName} - ${memberName} / ${committee} - ${timeStr}`; break;
+    case 1: labelText = entityName; break;
+    case 2: labelText = `${entityName} - ${memberName} / ${committee}`; break;
+    case 3: labelText = `${entityName} - ${memberName} / ${committee} - ${timeStr}`; break;
     default: labelText = memberName;
   }
   
+  const badgeIcon = visit.case ? 'assignment_late' : (visit.cemetery ? 'mosque' : 'person_pin');
+  const badgeColor = visit.case ? '#ff4444' : (visit.cemetery ? '#10b981' : '#00e5ff');
+
   const htmlStr = `
     <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 220px; pointer-events: none;">
       <div class="marker-pulse" style="position: relative; width: 50px; height: 50px; border-radius: 50%; border: 2px solid #00e5ff; background: #242b2d; box-shadow: 0 0 15px rgba(0,229,255,0.4);">
         <img src="${avatarUrl}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; position: relative; z-index: 10;" />
+        <div style="position: absolute; bottom: -5px; right: -5px; width: 20px; height: 20px; border-radius: 6px; background: #0f172a; border: 1.5px solid ${badgeColor}; z-index: 20; display: flex; items-center; justify-center;">
+           <span class="material-symbols-outlined" style="font-size: 14px; color: ${badgeColor}; font-weight: bold;">${badgeIcon}</span>
+        </div>
       </div>
       <div style="background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border: 1px solid #00e5ff; padding: 4px 12px; border-radius: 6px; font-family: 'Cairo', sans-serif; font-size: 11px; color: #fff; font-weight: 700; box-shadow: 0 4px 15px rgba(0,0,0,0.5); white-space: nowrap; direction: rtl; text-align: center;">
         <span style="color: #00e5ff;">${labelText}</span>
@@ -112,18 +118,6 @@ export default function Map({ cases = [], visits = [], campaigns = [], mapViewMo
             eventHandlers={{ click: () => onMarkerClick && onMarkerClick(c, 'case') }}
           />
         ))}
-
-        {(mapViewMode === 'CASES' || mapViewMode === 'BOTH') && visits.map(v => {
-          const name = v.user?.name || v.userId;
-          return (
-            <Marker 
-              key={v.id} 
-              position={[v.lat, v.lng]} 
-              icon={createSpecialistIcon(v, labelMode)}
-              eventHandlers={{ click: () => onMarkerClick && onMarkerClick(v, 'visit') }}
-            />
-          )
-        })}
 
         {(mapViewMode === 'CEMETERIES' || mapViewMode === 'BOTH') && Array.isArray(campaigns) && campaigns.flatMap(camp => camp.cemeteries || []).filter(cem => cem.lat !== null && cem.lng !== null).map(cem => (
           <Marker 

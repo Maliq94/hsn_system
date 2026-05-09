@@ -334,13 +334,22 @@ export default function MobileSpecialistPage() {
   }
 
   const createCemetery = async () => {
-    if (!focusedCampaign) return;
+    if (!focusedCampaign) {
+      setOpStatus('⚠️ خطأ: لم يتم تحديد حملة نشطة');
+      return;
+    }
     setProcessing(true)
     setOpStatus('جاري تسجيل الموقع استراتيجياً...')
+    console.log('SUBMITTING CEMETERY TO:', focusedCampaign.id, cemeteryForm.name);
+    
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+
       const res = await fetch('/api/cemeteries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           name: cemeteryForm.name,
           campaignId: focusedCampaign.id,
@@ -348,6 +357,8 @@ export default function MobileSpecialistPage() {
           lat: null, lng: null
         })
       })
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         setOpStatus('✅ تم حجز الاسم بنجاح!')
         setTimeout(() => {
@@ -356,8 +367,14 @@ export default function MobileSpecialistPage() {
           setCemeteryForm({ name: '', notes: '', images: null });
           syncOperations(activeUser.id);
         }, 1500)
+      } else {
+        const errData = await res.json();
+        setOpStatus('❌ خطأ: ' + (errData.error || 'فشل الاتصال بالسيرفر'));
       }
-    } catch (err) { setOpStatus('❌ فشل في الإرسال') }
+    } catch (err) { 
+      console.error('CEMETERY POST ERR:', err);
+      setOpStatus(err.name === 'AbortError' ? '⚠️ انتهت مهلة الطلب، حاول مرة أخرى' : '❌ فشل في الإرسال، تحقق من الشبكة');
+    }
     setProcessing(false)
   }
 

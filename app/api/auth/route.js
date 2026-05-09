@@ -24,30 +24,24 @@ export async function POST(request) {
       return Response.json({ user: adminRecord })
     }
 
-    const member = await prisma.user.findFirst({
+    const user = await prisma.user.findFirst({
       where: { 
         phone: phone, 
-        role: { in: ['SPECIALIST', 'MEMBER'] },
         status: 'ACTIVE' 
       }
     })
     
-    if (!member) {
-      console.log('AUTH FAILED: No matching active specialist found in DB')
+    if (!user) {
+      console.log('AUTH FAILED: No matching active user found in DB')
       return Response.json({ error: 'بيانات الدخول خاطئة أو الحساب غير نشط.' }, { status: 403 })
     }
 
-    // DIRECT PLAINTEXT COMPARISON (removed bcrypt)
-    if (member.password === password) {
-      console.log('AUTH SUCCESS:', member.name)
-      return Response.json({ user: member })
+    if (user.password === password) {
+      console.log('AUTH SUCCESS:', user.name)
+      return Response.json({ user })
     }
-
-    // Also check if it's an old hashed password just in case some are still in DB
-    // but the user requested to remove encryption, so they should probably update them.
-    // For now, only plaintext is allowed.
     
-    console.log('AUTH FAILED: Incorrect password for', member.name)
+    console.log('AUTH FAILED: Incorrect password for', user.name)
     return Response.json({ error: 'كلمة المرور غير صحيحة.' }, { status: 403 })
   } catch (err) {
     console.error('CRITICAL AUTH ERROR:', err)
