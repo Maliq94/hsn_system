@@ -1158,7 +1158,7 @@ export default function MobileSpecialistPage() {
                    <div className="flex items-center gap-4">
                      <div className="w-20 h-20 rounded-full bg-black/40 border-2 border-white/10 overflow-hidden flex items-center justify-center relative">
                         {settingsForm.photo ? <img src={settingsForm.photo} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-slate-500 text-3xl">person</span>}
-                        <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
+                        <input type="file" accept="image/*" capture="user" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
                           const f = e.target.files[0];
                           if(f){
                             const r = new FileReader();
@@ -1355,7 +1355,7 @@ export default function MobileSpecialistPage() {
                <label className="flex flex-col items-center gap-3">
                   <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-dashed border-[#00E5FF]/40 flex items-center justify-center relative overflow-hidden">
                      {memberForm.photo ? <img src={memberForm.photo} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-3xl text-[#00E5FF]/50">add_a_photo</span>}
-                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
+                     <input type="file" accept="image/*" capture="user" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
                        const f = e.target.files[0];
                        if(f){ const r = new FileReader(); r.onload=ev=>setMemberForm({...memberForm, photo: ev.target.result}); r.readAsDataURL(f); }
                      }}/>
