@@ -75,3 +75,16 @@ export async function PUT(request) {
     return Response.json({ error: err.message }, { status: 500 })
   }
 }
+ 
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    if (!id) return Response.json({ error: 'ID is required' }, { status: 400 })
+    await prisma.cemetery.delete({ where: { id } })
+    return Response.json({ success: true })
+  } catch (err) {
+    console.error('DELETE CEMETERY ERR:', err)
+    return Response.json({ error: err.message }, { status: 500 })
+  }
+}

@@ -77,14 +77,12 @@ export default function Home() {
   }
 
   if (!user) return (
-    <div className="container" style={{ justifyContent: 'center', alignItems: 'center', direction: 'rtl' }}>
+    <div className="container" style={{ justifyContent: 'center', alignItems: 'center', direction: 'rtl', fontFamily: "'Cairo', sans-serif" }}>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ width: '64px', height: '64px', background: '#00E5FF', borderRadius: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', boxShadow: '0 0 30px rgba(0,229,255,0.3)' }}>
-            <span className="material-symbols-outlined" style={{ color: '#0f172a', fontSize: '36px' }}>admin_panel_settings</span>
+        <div style={{ textAlign: 'center', marginBottom: '1rem' }}>
+          <div style={{ width: '120px', height: '120px', background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 2rem', overflow: 'hidden' }}>
+            <img src="/logo.png" alt="HSN Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
-          <h1 style={{ fontSize: '2.2rem', fontWeight: '900', color: '#fff', marginBottom: '0.5rem' }}>بوابة القيادة HSN</h1>
-          <p style={{ color: '#64748b', fontSize: '0.9rem' }}>نظام الإشراف الإداري والتحكم المركزي</p>
         </div>
         
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>

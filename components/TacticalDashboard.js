@@ -140,7 +140,7 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
 
       <nav className="fixed top-0 right-0 w-full z-[100] flex justify-between items-center px-6 h-14 bg-[#0B0E11]/80 backdrop-blur-md border-b border-[#2D3339]">
         <div className="text-lg font-bold tracking-widest text-[#00E5FF] flex items-center gap-3">
-          <span className="material-symbols-outlined icon-fill">radar</span>
+          <img src="/logo.png" alt="HSN Logo" style={{ width: '32px', height: '32px', objectFit: 'contain' }} />
           العمليات الذكية v1.0
         </div>
         
@@ -194,16 +194,15 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
 
           {activeView === 'MAP' && (
             <button 
-              onClick={() => setLabelMode((prev) => (prev + 1) % 4)}
+              onClick={() => setLabelMode((prev) => (prev + 1) % 3)}
               className="flex items-center gap-2 bg-white/5 border border-white/10 px-4 py-1.5 rounded-full hover:bg-white/10 transition-all group active:scale-95"
             >
               <span className="material-symbols-outlined text-[#00E5FF] text-[18px]">view_list</span>
               <div className="flex flex-col items-start pr-1 border-r border-white/10 mr-1 pl-1">
                 <span className="font-['Cairo'] text-[10px] text-white font-black leading-tight">
-                  {labelMode === 0 && 'المختص'}
-                  {labelMode === 1 && 'اسم الحالة'}
-                  {labelMode === 2 && 'المختص + الحالة'}
-                  {labelMode === 3 && 'بيانات تفصيلية'}
+                  {labelMode === 0 && 'الأيقونة فقط'}
+                  {labelMode === 1 && 'أيقونة + اسم'}
+                  {labelMode === 2 && 'صور المعاينة'}
                 </span>
               </div>
             </button>
@@ -231,8 +230,8 @@ export default function TacticalDashboard({ user, members = [], cases, visits, s
 
       <aside className="fixed right-0 top-14 bottom-0 z-50 flex flex-col items-center bg-[#15191C] w-20 border-l border-[#2D3339]">
         <div className="w-full py-6 flex flex-col items-center gap-2 border-b border-[#2D3339]">
-          <div className="w-10 h-10 rounded-lg bg-surface-container-highest border border-outline-variant flex items-center justify-center overflow-hidden">
-            <span className="material-symbols-outlined text-outline">admin_panel_settings</span>
+          <div className="w-10 h-10 flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="HSN" style={{ width: '90%', height: '90%', objectFit: 'contain' }} />
           </div>
           <div className="text-center w-full px-1">
             <div className="font-['Cairo'] text-[#00E5FF] font-black text-[12px] truncate">{user?.name || 'مدير'}</div>

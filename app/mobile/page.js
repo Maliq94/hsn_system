@@ -11,6 +11,7 @@ export default function MobileSpecialistPage() {
   const [activeUser, setActiveUser] = useState(null)
   const [activeCases, setActiveCases] = useState([])
   const [activeCampaigns, setActiveCampaigns] = useState([])
+  const [allVisits, setAllVisits] = useState([])
   const [cityRegistry, setCityRegistry] = useState([])
   const [focusedCase, setFocusedCase] = useState(null)
   const [focusedCampaign, setFocusedCampaign] = useState(null)
@@ -20,13 +21,16 @@ export default function MobileSpecialistPage() {
   const [processing, setProcessing] = useState(false)
   const [opStatus, setOpStatus] = useState('')
   const [compressing, setCompressing] = useState(false)
-  const [activeTab, setActiveTab] = useState('DASHBOARD'); // 'DASHBOARD' | 'TASKS' | 'CAMPAIGNS'
+  const [activeTab, setActiveTab] = useState('DASHBOARD'); // 'DASHBOARD' | 'CAMPAIGNS' | 'TEAM' | 'SETTINGS'
   const [addingNewOp, setAddingNewOp] = useState(false)
   const [addingCemetery, setAddingCemetery] = useState(false)
+  const [addingMember, setAddingMember] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [capturedVoice, setCapturedVoice] = useState(null)
   const [recordingTime, setRecordingTime] = useState(0)
   const [loadingAction, setLoadingAction] = useState(null)
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+  const [memberViewMode, setMemberViewMode] = useState('LIST'); // 'LIST' | 'GRID'
   const timerRef = useRef(null)
   const caseHistoryRef = useRef(new Set())
   const isInitialLoad = useRef(true)
@@ -34,6 +38,9 @@ export default function MobileSpecialistPage() {
   const [opForm, setOpForm] = useState({ title: '', description: '', city: 'طرابلس', type: 'رصد ومتابعة', campaignId: null })
   const [cemeteryForm, setCemeteryForm] = useState({ name: '', notes: '', images: null })
   const [authForm, setAuthForm] = useState({ phone: '', password: '' })
+  const [memberForm, setMemberForm] = useState({ id: '', name: '', phone: '', password: '', role: 'MEMBER', photo: '' })
+  const [settingsForm, setSettingsForm] = useState({ name: '', phone: '', password: '', photo: '' })
+  const [committeeMembers, setCommitteeMembers] = useState([])
 
   useEffect(() => {
     const restoreSession = async () => {
@@ -60,6 +67,7 @@ export default function MobileSpecialistPage() {
       // 2. Close Form Modals
       if (addingNewOp) { setAddingNewOp(false); return; }
       if (addingCemetery) { setAddingCemetery(false); return; }
+      if (addingMember) { setAddingMember(false); return; }
 
       // 3. Navigate back to Dashboard if in other tabs
       if (activeTab !== 'DASHBOARD') {
@@ -83,6 +91,7 @@ export default function MobileSpecialistPage() {
     // Request Permissions
     const setupPerms = async () => {
       const vStatus = await VoiceRecorder.requestAudioRecordingPermission()
+      /*
       const nStatus = await LocalNotifications.checkPermissions()
       if (nStatus.display === 'prompt') await LocalNotifications.requestPermissions()
       
@@ -95,6 +104,7 @@ export default function MobileSpecialistPage() {
         importance: 5, // High importance
         visibility: 1
       })
+      */
     }
     setupPerms()
 
@@ -106,16 +116,23 @@ export default function MobileSpecialistPage() {
 
   const syncOperations = async (userId) => {
     try {
-      const [cRes, cityRes, campRes] = await Promise.all([
+      const [cRes, cityRes, campRes, memRes, vRes] = await Promise.all([
         fetch('/api/cases', { cache: 'no-store' }),
         fetch('/api/cities', { cache: 'no-store' }),
-        fetch('/api/campaigns', { cache: 'no-store' })
+        fetch('/api/campaigns', { cache: 'no-store' }),
+        fetch('/api/members', { cache: 'no-store' }),
+        fetch('/api/visits', { cache: 'no-store' })
       ])
       const cData = await cRes.json()
       const cityData = await cityRes.json()
       const campData = await campRes.json()
+      const memData = await memRes.json()
+      const vData = await vRes.json()
+      
+      setAllVisits(vData)
       
       setCityRegistry(cityData)
+      setCommitteeMembers(memData.filter(m => m.committee === activeUser?.committee))
       
       // Filter campaigns based on visibility and membership
       const visibleCampaigns = campData.filter(camp => 
@@ -130,6 +147,7 @@ export default function MobileSpecialistPage() {
       // Alert Logic: Detect New Assignments (Heartbeat Delta)
       const currentIds = assigned.map(c => c.id)
       
+      /*
       if (!isInitialLoad.current && currentIds.length > 0) {
         const reallyNew = currentIds.filter(id => !caseHistoryRef.current.has(id))
         if (reallyNew.length > 0) {
@@ -146,6 +164,7 @@ export default function MobileSpecialistPage() {
            })
         }
       }
+      */
 
       // Sync the tracking set with current reality
       caseHistoryRef.current = new Set(currentIds)
@@ -253,6 +272,7 @@ export default function MobileSpecialistPage() {
     if (mode === 'LOCATION' && entity.lat !== null) { setOpStatus('📍 الموقع مثبت مسبقاً'); return; }
     if (mode === 'TEXT' && !reportNotes.trim()) { setOpStatus('⚠️ يرجى كتابة نص'); return; }
     if (mode === 'IMAGE' && !capturedImage) { setOpStatus('⚠️ يرجى التقاط صورة'); return; }
+    if (mode === 'VOICE' && !capturedVoice) { setOpStatus('⚠️ يرجى تسجيل إحاطة صوتية'); return; }
 
     setProcessing(true)
     setLoadingAction(mode)
@@ -408,14 +428,14 @@ export default function MobileSpecialistPage() {
   }
 
   if (isAuthChecking) return (
-    <div className="container bg-[#0B0E11] min-h-screen flex flex-col items-center justify-center p-6" dir="rtl">
+    <div className="container bg-[#0B0E11] min-h-screen flex flex-col items-center justify-center p-6 font-['Cairo']" dir="rtl">
        <div className="relative mb-8">
-          <div className="w-24 h-24 rounded-full border-2 border-[#00E5FF]/20 flex items-center justify-center animate-pulse">
-             <span className="material-symbols-outlined text-5xl text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.5)]">radar</span>
+          <div className="w-40 h-48 flex items-center justify-center animate-pulse">
+             <img src="/logo.png" alt="HSN Logo" className="w-full h-full object-contain" />
           </div>
           <div className="absolute inset-0 border-2 border-[#00E5FF] rounded-full animate-ping opacity-20"></div>
        </div>
-       <h1 className="text-2xl font-bold tracking-[0.2em] text-white mb-2">HSN OPERATION</h1>
+       <h1 className="text-2xl font-black text-white mb-2">برنامج حصين</h1>
        <div className="flex items-center gap-2 text-[#00E5FF]">
           <div className="w-1.5 h-1.5 bg-[#00E5FF] rounded-full animate-bounce"></div>
           <span className="text-[10px] font-mono tracking-widest uppercase opacity-80">Syncing Tactical Data...</span>
@@ -424,10 +444,11 @@ export default function MobileSpecialistPage() {
   )
 
   if (!activeUser) return (
-    <div className="container p-6 bg-[#0B0E11] min-h-screen flex items-center justify-center text-right" dir="rtl">
+    <div className="container p-6 bg-[#0B0E11] min-h-screen flex items-center justify-center text-right font-['Cairo']" dir="rtl">
       <div className="glass-panel w-full max-w-sm p-10 border border-white/10 rounded-[3rem] shadow-2xl">
-        <h2 className="text-3xl font-black text-[#00E5FF] mb-2 tracking-tight">نظام العمليات الميدانية</h2>
-        <p className="text-slate-500 mb-8 text-xs font-bold uppercase tracking-widest">HSN INTELLIGENT OPS CENTER</p>
+        <div className="w-48 h-48 flex items-center justify-center mx-auto mb-10 overflow-hidden">
+           <img src="/logo.png" alt="HSN Logo" className="w-full h-full object-contain" />
+        </div>
         <div className="flex flex-col gap-4">
           <input type="text" placeholder="رقم الهاتف" value={authForm.phone} onChange={e=>setAuthForm({...authForm, phone:e.target.value})} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:border-[#00E5FF] text-right"/>
           <input type="password" placeholder="كلمة المرور" value={authForm.password} onChange={e=>setAuthForm({...authForm, password:e.target.value})} className="p-5 bg-slate-900 border border-slate-800 rounded-2xl text-white outline-none focus:border-[#00E5FF] text-right"/>
@@ -441,15 +462,25 @@ export default function MobileSpecialistPage() {
   const currentEntity = focusedCase || focusedCemetery;
   const histImages = currentEntity?.visits?.flatMap(v => { try { return JSON.parse(v.images || '[]') } catch(e) { return [] } }) || []
 
-  const myVisits = activeCases.flatMap(c => c.visits || []).filter(v => v.userId === activeUser.id);
-  const myAnchors = activeCases.filter(c => c.lat !== null).length;
+  const myVisits = allVisits.filter(v => v.userId === activeUser.id);
+  const myAnchors = myVisits.filter(v => v.lat !== 0 && v.lat !== null).length;
+
+  const mainCampaign = activeCampaigns[0] || null;
+  const myCasesCount = mainCampaign?.cases?.filter(c => c.addedBy === activeUser.id).length || 0;
+  const allCasesCount = mainCampaign?.cases?.length || 0;
+  const myCemCount = mainCampaign?.cemeteries?.filter(c => c.addedBy === activeUser.id).length || 0;
+  const allCemCount = mainCampaign?.cemeteries?.length || 0;
 
   return (
     <div className="bg-[#0B0E11] min-h-screen text-white font-['Cairo'] pb-20" dir="rtl">
       <header className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0B0E11]/80 backdrop-blur-xl sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 border border-[#00E5FF]/40 flex items-center justify-center shadow-[0_0_10px_rgba(0,229,255,0.2)]">
-            <span className="material-symbols-outlined text-[#00E5FF] text-xl">verified_user</span>
+          <div className="w-10 h-10 rounded-full bg-[#00E5FF]/20 border border-[#00E5FF]/40 flex items-center justify-center shadow-[0_0_10px_rgba(0,229,255,0.2)] overflow-hidden">
+            {activeUser.photo ? (
+              <img src={activeUser.photo} className="w-full h-full object-cover" />
+            ) : (
+              <span className="material-symbols-outlined text-[#00E5FF] text-xl">person</span>
+            )}
           </div>
           <div>
             <div className="font-black text-sm text-white">{activeUser.name}</div>
@@ -471,93 +502,53 @@ export default function MobileSpecialistPage() {
                 <p className="text-slate-500 text-sm">نظام مركز البيانات الموحد - وضع العمل المنفذ</p>
              </section>
 
-             <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-3">
-                   <span className="material-symbols-outlined text-[#00E5FF] opacity-50">radar</span>
-                   <div className="flex flex-col">
-                      <span className="text-2xl font-black">{activeCases.length}</span>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase">مهام ميدانية نشطة</span>
+              {mainCampaign && (
+                <div className="bg-gradient-to-br from-[#00E5FF]/10 to-transparent border border-[#00E5FF]/20 p-6 rounded-[2.5rem] flex flex-col gap-4">
+                   <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-black text-[#00E5FF] uppercase tracking-widest bg-[#00E5FF]/10 px-3 py-1 rounded-full border border-[#00E5FF]/20">الحملة النشطة</span>
+                      <div className="text-xs font-black text-white">{mainCampaign.name}</div>
+                   </div>
+                   
+                   <div className="grid grid-cols-2 gap-4 mt-2 text-right">
+                      <div className="flex flex-col gap-1">
+                         <div className="text-[9px] text-slate-500 font-bold uppercase">حالاتك / الإجمالي</div>
+                         <div className="flex items-end gap-1">
+                            <span className="text-2xl font-black text-[#00E5FF]">{myCasesCount}</span>
+                            <span className="text-xs text-slate-500 mb-1">/ {allCasesCount}</span>
+                         </div>
+                      </div>
+                      <div className="flex flex-col gap-1">
+                         <div className="text-[9px] text-slate-500 font-bold uppercase">مواقعك / الإجمالي</div>
+                         <div className="flex items-end gap-1">
+                            <span className="text-2xl font-black text-emerald-400">{myCemCount}</span>
+                            <span className="text-xs text-slate-500 mb-1">/ {allCemCount}</span>
+                         </div>
+                      </div>
                    </div>
                 </div>
-                <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-3">
-                   <span className="material-symbols-outlined text-purple-400 opacity-50">history_edu</span>
-                   <div className="flex flex-col">
-                      <span className="text-2xl font-black">{myVisits.length}</span>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase">إحاطات تم رفعها</span>
-                   </div>
-                </div>
-                <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-3">
-                   <span className="material-symbols-outlined text-green-400 opacity-50">location_searching</span>
-                   <div className="flex flex-col">
-                      <span className="text-2xl font-black">{myAnchors}</span>
-                      <span className="text-[10px] text-slate-500 font-bold uppercase">مواقع تم تثبيتها</span>
-                   </div>
-                </div>
-                <div className="bg-[#00E5FF]/10 border border-[#00E5FF]/30 p-6 rounded-[2.5rem] flex flex-col gap-3 items-center justify-center text-[#00E5FF]" onClick={() => setActiveTab('TASKS')}>
-                   <span className="material-symbols-outlined text-3xl animate-pulse">ads_click</span>
-                   <span className="text-[10px] font-black uppercase">فتح المهام</span>
-                </div>
-             </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                 <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-3">
+                    <span className="material-symbols-outlined text-purple-400 opacity-50">history_edu</span>
+                    <div className="flex flex-col">
+                       <span className="text-2xl font-black">{myVisits.length}</span>
+                       <span className="text-[10px] text-slate-500 font-bold uppercase">إجمالي التقارير</span>
+                    </div>
+                 </div>
+                 <div className="bg-white/5 border border-white/10 p-6 rounded-[2.5rem] flex flex-col gap-3">
+                    <span className="material-symbols-outlined text-green-400 opacity-50">location_searching</span>
+                    <div className="flex flex-col">
+                       <span className="text-2xl font-black">{myAnchors}</span>
+                       <span className="text-[10px] text-slate-500 font-bold uppercase">مواقع تم تثبيتها</span>
+                    </div>
+                 </div>
+              </div>
 
              <div className="bg-[#00E5FF]/5 border border-[#00E5FF]/20 rounded-3xl p-6 flex items-center gap-4">
                 <span className="material-symbols-outlined text-[#00E5FF] animate-pulse">security</span>
                 <p className="text-xs text-slate-400 leading-relaxed text-right">أنت الآن في وضع العمل الميداني المباشر. كافة البيانات التي يتم رفعها مشفرة ومرسلة فوراً لمركز القيادة الموحد.</p>
              </div>
-          </div>
-        )}
-
-        {activeTab === 'TASKS' && (
-          <div className="flex flex-col gap-6 animate-fade-in">
-            <div className="flex items-center justify-between bg-white/5 border border-white/10 p-5 rounded-3xl backdrop-blur-md">
-               <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-[#00E5FF] to-[#00B8D4] flex items-center justify-center text-slate-950 shadow-[0_0_15px_rgba(0,229,255,0.3)]">
-                     <span className="material-symbols-outlined font-black">person</span>
-                  </div>
-                  <div>
-                     <div className="text-sm font-black text-white leading-tight">{activeUser?.name}</div>
-                     <div className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-wider">{activeUser?.committee || 'لجنة غير محددة'}</div>
-                  </div>
-               </div>
-               <div className="flex flex-col items-end gap-1">
-                  <div className="flex items-center gap-2 bg-black/40 px-3 py-1 rounded-full border border-[#00E5FF]/20">
-                     <div className="w-2 h-2 rounded-full bg-[#00E5FF] animate-ping"></div>
-                     <span className="text-[10px] font-black text-[#00E5FF]">متصل الآن</span>
-                  </div>
-               </div>
-            </div>
-
-            <div className="flex justify-between items-center mt-2">
-              <h3 className="text-lg font-bold flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#00E5FF]">ads_click</span> العمليات الميدانية النشطة
-              </h3>
-            </div>
-
-            <div className="space-y-4">
-              {activeCases.map(c => (
-                <div key={c.id} onClick={() => setFocusedCase(c)} className="group relative bg-[#1A1F24] border border-white/10 p-6 rounded-[2.5rem] active:scale-[0.98] transition-all shadow-xl overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5FF]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
-                  <div className="flex justify-between items-start mb-4 relative">
-                    <div>
-                      <span className="text-[10px] font-mono text-[#00E5FF] tracking-widest block mb-1 uppercase">{c.id}</span>
-                      <h4 className="font-black text-xl text-white">{c.title}</h4>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-[10px] bg-white/5 border border-white/10 text-white px-3 py-1 rounded-full font-bold">{c.city}</span>
-                      <span className={`text-[9px] px-2 py-0.5 rounded-md border ${c.status === 'OPEN' ? 'border-[#00E5FF]/30 text-[#00E5FF]' : 'border-slate-700 text-slate-500'}`}>{c.status === 'OPEN' ? 'نشطة' : 'مؤرشفة'}</span>
-                    </div>
-                  </div>
-                  <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed mb-6">{c.description}</p>
-                  <div className="flex items-center justify-between border-t border-white/5 pt-4">
-                     <div className="flex items-center gap-2">
-                        <span className="material-symbols-outlined text-[16px] text-slate-600">tactic</span>
-                        <span className="text-xs font-bold text-slate-500">{c.visits?.length || 0} تقارير منشورة</span>
-                     </div>
-                     <span className="material-symbols-outlined text-[#00E5FF]">arrow_circle_left</span>
-                  </div>
-                </div>
-              ))}
-              {activeCases.length === 0 && <div className="p-12 text-center text-slate-600 border border-dashed border-white/10 rounded-3xl italic">لا توجد عمليات نشطة</div>}
-            </div>
           </div>
         )}
 
@@ -1011,7 +1002,7 @@ export default function MobileSpecialistPage() {
                  </div>
                  <div className="flex flex-col gap-6">
                     {(!focusedCemetery.visits || focusedCemetery.visits.length === 0) ? (
-                      <div className="text-xs text-slate-500 italic text-center py-8 bg-black/20 rounded-3xl border border-white/5">قيد الانتظار لمباشرة العمل الميداني</div>
+                       <div className="text-xs text-slate-500 italic text-center py-8 bg-black/20 rounded-3xl border border-white/5">قيد الانتظار لمباشرة العمل الميداني</div>
                     ) : (focusedCemetery.visits || []).slice().sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp)).map((v, idx) => (
                       <div key={v.id} className="relative pr-8 border-r-2 border-[#00E5FF]/10 pb-2 last:pb-0">
                          <div className="absolute -right-1.5 top-0 w-3 h-3 rounded-full bg-[#00E5FF] border-[3px] border-[#0B0E11] shadow-[0_0_10px_#00E5FF]"></div>
@@ -1108,10 +1099,10 @@ export default function MobileSpecialistPage() {
                          </>
                        ) : (
                          <div className="flex flex-col items-center gap-3">
-                            <div className="w-16 h-16 rounded-full bg-[#00E5FF]/10 flex items-center justify-center group-active:scale-95 transition-transform shadow-[0_0_15px_rgba(0,229,255,0.1)]">
-                               <span className="material-symbols-outlined text-3xl text-[#00E5FF]">add_a_photo</span>
-                            </div>
-                            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">اضغط لالتقاط صورة</span>
+                           <div className="w-16 h-16 rounded-full bg-[#00E5FF]/10 flex items-center justify-center group-active:scale-95 transition-transform shadow-[0_0_15px_rgba(0,229,255,0.1)]">
+                              <span className="material-symbols-outlined text-3xl text-[#00E5FF]">add_a_photo</span>
+                           </div>
+                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">اضغط لالتقاط صورة</span>
                          </div>
                        )}
                     </label>
@@ -1154,6 +1145,147 @@ export default function MobileSpecialistPage() {
            </div>
         )}
 
+         {/* SETTINGS TAB */}
+         {activeTab === 'SETTINGS' && (
+           <div className="flex flex-col gap-6 animate-fade-in">
+             <header className="mb-2 text-right">
+                <h2 className="text-2xl font-black text-white">إعدادات الحساب</h2>
+                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">إدارة الملف الشخصي والبيانات</p>
+             </header>
+             <div className="bg-white/5 border border-white/10 p-6 rounded-[2rem] flex flex-col gap-5 text-right shadow-lg">
+                <label className="flex flex-col gap-2">
+                   <span className="text-[10px] text-[#00E5FF] font-bold">الصورة الشخصية</span>
+                   <div className="flex items-center gap-4">
+                     <div className="w-20 h-20 rounded-full bg-black/40 border-2 border-white/10 overflow-hidden flex items-center justify-center relative">
+                        {settingsForm.photo ? <img src={settingsForm.photo} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-slate-500 text-3xl">person</span>}
+                        <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
+                          const f = e.target.files[0];
+                          if(f){
+                            const r = new FileReader();
+                            r.onload = ev => setSettingsForm({...settingsForm, photo: ev.target.result});
+                            r.readAsDataURL(f);
+                          }
+                        }}/>
+                     </div>
+                     <span className="text-[10px] text-slate-500 w-1/2">انقر على الدائرة لاختيار صورة الوجه</span>
+                   </div>
+                </label>
+                <label className="flex flex-col gap-2">
+                   <span className="text-[10px] text-[#00E5FF] font-bold">الاسم الكامل</span>
+                   <input type="text" value={settingsForm.name} onChange={e=>setSettingsForm({...settingsForm, name: e.target.value})} className="p-4 bg-black/40 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+                </label>
+                <label className="flex flex-col gap-2">
+                   <span className="text-[10px] text-[#00E5FF] font-bold">رقم الهاتف</span>
+                   <input type="text" value={settingsForm.phone} onChange={e=>setSettingsForm({...settingsForm, phone: e.target.value})} className="p-4 bg-black/40 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+                </label>
+                <label className="flex flex-col gap-2">
+                   <span className="text-[10px] text-[#00E5FF] font-bold">تغيير كلمة المرور (اختياري)</span>
+                   <input type="password" value={settingsForm.password} onChange={e=>setSettingsForm({...settingsForm, password: e.target.value})} placeholder="اترك الحقل فارغاً إذا لم ترد تغييرها" className="p-4 bg-black/40 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+                </label>
+                
+                {opStatus && <div className="text-[#00E5FF] text-[10px] text-center font-bold">{opStatus}</div>}
+                
+                <button disabled={processing} onClick={async () => {
+                  setProcessing(true); setOpStatus('جاري الحفظ...');
+                  try {
+                    const res = await fetch('/api/members', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({...settingsForm, id: activeUser.id}) });
+                    if(res.ok) {
+                      const updatedUser = await res.json();
+                      localStorage.setItem('hsn_user', JSON.stringify(updatedUser));
+                      setActiveUser(updatedUser);
+                      setOpStatus('✅ تم تحديث البيانات');
+                      setTimeout(() => setOpStatus(''), 2000);
+                    } else setOpStatus('❌ فشل التحديث');
+                  } catch(e) { setOpStatus('❌ خطأ في الاتصال'); }
+                  setProcessing(false);
+                }} className="mt-2 bg-[#00E5FF] text-slate-950 font-black p-4 rounded-2xl active:scale-95 transition-all shadow-lg">حفظ الإعدادات</button>
+             </div>
+           </div>
+         )}
+
+         {/* TEAM TAB for COMMITTEE_HEAD */}
+          {activeTab === 'TEAM' && activeUser?.role === 'COMMITTEE_HEAD' && (
+            <div className="flex flex-col gap-6 animate-fade-in">
+              <header className="mb-2 text-right flex justify-between items-center">
+                 <div>
+                    <h2 className="text-2xl font-black text-white">أعضاء لجنتك</h2>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">إدارة فرقك الميدانية</p>
+                 </div>
+                 <div className="flex bg-white/5 border border-white/10 rounded-xl p-1">
+                    <button onClick={()=>setMemberViewMode('LIST')} className={`p-1.5 rounded-lg transition-all ${memberViewMode==='LIST' ? 'bg-[#00E5FF] text-slate-900' : 'text-slate-500'}`}>
+                       <span className="material-symbols-outlined text-lg">format_list_bulleted</span>
+                    </button>
+                    <button onClick={()=>setMemberViewMode('GRID')} className={`p-1.5 rounded-lg transition-all ${memberViewMode==='GRID' ? 'bg-[#00E5FF] text-slate-900' : 'text-slate-500'}`}>
+                       <span className="material-symbols-outlined text-lg">grid_view</span>
+                    </button>
+                 </div>
+              </header>
+              <button onClick={() => { setMemberForm({ id: '', name: '', phone: '', password: '', role: 'MEMBER', photo: '' }); setAddingMember(true); }} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex items-center justify-center gap-2 text-[#00E5FF] font-black active:scale-95 transition-all">
+                 <span className="material-symbols-outlined">person_add</span> إضافة عضو جديد
+              </button>
+
+              {memberViewMode === 'LIST' ? (
+                <div className="flex flex-col gap-4">
+                   {committeeMembers.length > 0 ? committeeMembers.map(member => (
+                      <div key={member.id} className="bg-black/20 border border-white/5 p-4 rounded-2xl flex flex-col gap-4 shadow-inner">
+                         <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                               <div className="w-12 h-12 rounded-full bg-[#0B0E11] border border-white/10 overflow-hidden">
+                                  {member.photo ? <img src={member.photo} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-slate-600 m-3">person</span>}
+                               </div>
+                               <div className="text-right">
+                                  <div className="text-sm font-black text-white">{member.name}</div>
+                                  <div className="text-[9px] text-[#00E5FF] font-bold">{member.phone} • {member.status === 'ACTIVE' ? 'نشط' : 'غير نشط'}</div>
+                               </div>
+                            </div>
+                            <div className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${member.role === 'COMMITTEE_HEAD' ? 'text-purple-400 border-purple-400/20' : 'text-slate-500 border-white/10'}`}>{member.role === 'COMMITTEE_HEAD' ? 'رئيس' : 'عضو'}</div>
+                         </div>
+                         
+                         <div className="flex gap-2 justify-end border-t border-white/5 pt-3">
+                            <button onClick={() => { setMemberForm({ id: member.id, name: member.name, phone: member.phone, password: '', role: member.role, photo: member.photo }); setAddingMember(true); }} className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-lg text-slate-400 text-[10px] font-bold active:scale-95 transition-all">
+                               <span className="material-symbols-outlined text-[14px]">edit</span> تعديل
+                            </button>
+                            <button onClick={async () => {
+                               if(!confirm('هل أنت متأكد من حذف هذا العضو؟')) return;
+                               setProcessing(true);
+                               try {
+                                  const res = await fetch(`/api/members?id=${member.id}`, { method: 'DELETE' });
+                                  if(res.ok) {
+                                     syncOperations(activeUser.id);
+                                     setOpStatus('✅ تم الحذف بنجاح');
+                                     setTimeout(()=>setOpStatus(''), 2000);
+                                  }
+                               } catch(e) {}
+                               setProcessing(false);
+                            }} className="flex items-center gap-1.5 bg-red-500/10 px-3 py-1.5 rounded-lg text-red-500 text-[10px] font-bold active:scale-95 transition-all">
+                               <span className="material-symbols-outlined text-[14px]">delete</span> حذف
+                            </button>
+                         </div>
+                      </div>
+                   )) : (
+                      <div className="text-[10px] font-bold text-slate-500 text-center py-10 border border-dashed border-white/10 rounded-3xl">لا يوجد أعضاء في لجنتك حالياً.</div>
+                   )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                   {committeeMembers.map(member => (
+                      <div key={member.id} className="bg-black/20 border border-white/5 p-4 rounded-[2.5rem] flex flex-col items-center text-center gap-4 relative group active:scale-95 transition-all" onClick={() => { setMemberForm({ id: member.id, name: member.name, phone: member.phone, password: '', role: member.role, photo: member.photo }); setAddingMember(true); }}>
+                         <div className="w-full aspect-square rounded-[1.5rem] bg-[#0B0E11] border-2 border-[#00E5FF]/20 overflow-hidden shadow-xl relative">
+                            {member.photo ? <img src={member.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined text-6xl text-slate-700">person</span></div>}
+                         </div>
+                         <div className="flex flex-col overflow-hidden w-full px-2">
+                            <span className="text-sm font-black text-white truncate">{member.name}</span>
+                            <span className="text-[10px] text-[#00E5FF] font-bold mt-1 tracking-wider uppercase opacity-70">{member.role === 'COMMITTEE_HEAD' ? 'رئيس لجنة' : 'مختص ميداني'}</span>
+                         </div>
+                         <div className={`absolute top-6 right-6 w-3 h-3 rounded-full border-2 border-[#15191C] ${member.status === 'ACTIVE' ? 'bg-[#00E5FF] shadow-[0_0_8px_#00E5FF]' : 'bg-red-500'}`}></div>
+
+                      </div>
+                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
         {addingNewOp && (
           <div className="fixed inset-0 bg-[#0B0E11] z-[500] flex flex-col animate-enter">
             <header className="p-6 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#0B0E11]/90 backdrop-blur-xl z-[510]">
@@ -1161,8 +1293,8 @@ export default function MobileSpecialistPage() {
                  <span className="material-symbols-outlined text-white">arrow_forward</span>
                </button>
                <div className="text-center">
-                  <span className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-widest block">إضافة بيانات</span>
-                  <span className="font-black text-sm">مهمة ميدانية جديدة</span>
+                  <span className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-widest block">إدخال البيانات</span>
+                  <span className="font-black text-sm">إضافة حالة جديدة</span>
                </div>
                <div className="w-12 h-12"></div>
             </header>
@@ -1170,67 +1302,166 @@ export default function MobileSpecialistPage() {
             <div className="p-6 flex flex-col gap-6">
                <input 
                  type="text"
-                 placeholder="عنوان المهمة الميدانية" 
+                 placeholder="عنوان الحالة" 
                  value={opForm.title} 
                  onChange={e=>setOpForm({...opForm, title:e.target.value})} 
                  className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"
                />
                <textarea 
-                 placeholder="التعليمات والأهداف التفصيلية ..." 
+                 placeholder="وصف وتفاصيل الحالة..." 
                  value={opForm.description} 
                  onChange={e=>setOpForm({...opForm, description:e.target.value})} 
                  className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] h-40 resize-none text-white text-right"
                />
-               <select value={opForm.city} onChange={e=>setOpForm({...opForm, city:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white">
-                  <option value="">اختيار مدينة النطاق</option>
-                  {cityRegistry.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-               </select>
-               <select value={opForm.type} onChange={e=>setOpForm({...opForm, type:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white">
+               <select value={opForm.type} onChange={e=>setOpForm({...opForm, type:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right">
                   <option>رصد ومتابعة</option> <option>تحقيق حالة</option> <option>تدخل حرج</option> <option>إغاثة</option>
                </select>
 
                {/* Campaign Link (Mandatory) */}
                {!focusedCampaign && (
-                 <select required value={opForm.campaignId || ''} onChange={e=>setOpForm({...opForm, campaignId:e.target.value})} className="p-5 bg-slate-900 border border-[#00E5FF]/30 rounded-2xl outline-none focus:border-[#00E5FF] text-white">
-                    <option value="">ربط العملية بحملة نشطة (إلزامي)</option>
+                 <select required value={opForm.campaignId || ''} onChange={e=>setOpForm({...opForm, campaignId:e.target.value})} className="p-5 bg-slate-900 border border-[#00E5FF]/30 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right">
+                    <option value="">ربط الحالة بحملة نشطة (إلزامي)</option>
                     {activeCampaigns.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                  </select>
                )}
                {focusedCampaign && (
-                 <div className="p-5 bg-[#00E5FF]/5 border border-[#00E5FF]/20 rounded-2xl text-[#00E5FF] text-[11px] font-bold">
+                 <div className="p-5 bg-[#00E5FF]/5 border border-[#00E5FF]/20 rounded-2xl text-[#00E5FF] text-[11px] font-bold text-right">
                    سيتم ربط الحالة بحملة: {focusedCampaign.name}
                  </div>
                )}
 
                {opStatus && <div className="text-center text-[#00E5FF] font-bold text-sm bg-[#00E5FF]/5 p-3 rounded-xl border border-[#00E5FF]/20">{opStatus}</div>}
                <button onClick={createOp} disabled={processing} className="bg-gradient-to-r from-[#00E5FF] to-[#00B8D4] text-slate-950 font-black p-6 rounded-3xl text-lg shadow-[0_15px_30px_rgba(0,229,255,0.3)] active:scale-95 transition-all"> 
-                  {processing ? 'جاري التثبيت...' : 'تثبيت الحالة على الخارطة'} 
+                  {processing ? 'جاري الحفظ...' : 'حفظ بيانات الحالة'} 
                </button>
                <button onClick={() => setAddingNewOp(false)} className="w-full bg-white/5 text-slate-500 font-bold p-5 rounded-2xl active:scale-95 transition-all">إلغاء وتراجع</button>
+            </div>
+          </div>
+        )}
+        {addingMember && (
+          <div className="fixed inset-0 bg-[#0B0E11] z-[500] flex flex-col animate-enter">
+            <header className="p-6 border-b border-white/5 flex justify-between items-center sticky top-0 bg-[#0B0E11]/90 backdrop-blur-xl z-[510]">
+               <button onClick={() => setAddingMember(false)} className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center active:scale-90 transition-all border border-white/10 shadow-lg">
+                 <span className="material-symbols-outlined text-white">arrow_forward</span>
+               </button>
+               <div className="text-center">
+                  <span className="text-[10px] font-bold text-[#00E5FF] uppercase tracking-widest block">إدارة الفريق</span>
+                  <span className="font-black text-sm">{memberForm.id ? 'تعديل بيانات العضو' : 'إضافة عضو جديد'}</span>
+               </div>
+               <div className="w-12 h-12"></div>
+            </header>
+            
+            <div className="p-6 flex flex-col gap-6 overflow-y-auto">
+               <label className="flex flex-col items-center gap-3">
+                  <div className="w-24 h-24 rounded-full bg-white/5 border-2 border-dashed border-[#00E5FF]/40 flex items-center justify-center relative overflow-hidden">
+                     {memberForm.photo ? <img src={memberForm.photo} className="w-full h-full object-cover"/> : <span className="material-symbols-outlined text-3xl text-[#00E5FF]/50">add_a_photo</span>}
+                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e)=>{
+                       const f = e.target.files[0];
+                       if(f){ const r = new FileReader(); r.onload=ev=>setMemberForm({...memberForm, photo: ev.target.result}); r.readAsDataURL(f); }
+                     }}/>
+                  </div>
+                  <span className="text-[10px] text-[#00E5FF] font-bold">صورة الوجه</span>
+               </label>
+               <input type="text" placeholder="الاسم الكامل" value={memberForm.name} onChange={e=>setMemberForm({...memberForm, name:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+               <input type="tel" placeholder="رقم الهاتف (الدخول)" value={memberForm.phone} onChange={e=>setMemberForm({...memberForm, phone:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+               <input type="text" placeholder="كلمة المرور الافتراضية" value={memberForm.password} onChange={e=>setMemberForm({...memberForm, password:e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right"/>
+               
+               <select value={memberForm.role} onChange={e=>setMemberForm({...memberForm, role: e.target.value})} className="p-5 bg-slate-900 border border-white/10 rounded-2xl outline-none focus:border-[#00E5FF] text-white text-right appearance-none">
+                  <option value="MEMBER">عضو لجنة (مختص)</option>
+                  <option value="COMMITTEE_HEAD">رئيس لجنة (إشراف)</option>
+               </select>
+               
+               {opStatus && <div className="text-center text-[#00E5FF] font-bold text-sm bg-[#00E5FF]/5 p-3 rounded-xl border border-[#00E5FF]/20">{opStatus}</div>}
+               <button disabled={processing} onClick={async () => {
+                 if(!memberForm.name || !memberForm.phone) { setOpStatus('الاسم والهاتف مطلوبان'); return; }
+                 setProcessing(true); setOpStatus(memberForm.id ? 'جاري التعديل...' : 'جاري الإضافة...');
+                 try {
+                   const res = await fetch('/api/members', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({...memberForm, committee: activeUser.committee}) });
+                   if(res.ok) {
+                     setOpStatus(memberForm.id ? '✅ تم التعديل بنجاح' : '✅ تمت إضافة العضو بنجاح');
+                     syncOperations(activeUser.id);
+                     setTimeout(() => { setAddingMember(false); setMemberForm({ id: '', name: '', phone: '', password: '', role: 'MEMBER', photo: '' }); setOpStatus(''); }, 1500);
+                   } else setOpStatus('❌ فشلت العملية');
+                 } catch(e) { setOpStatus('❌ خطأ في الاتصال'); }
+                 setProcessing(false);
+               }} className="bg-[#00E5FF] text-slate-950 font-black p-6 rounded-3xl text-lg shadow-lg active:scale-95 transition-all mt-4">{memberForm.id ? 'حفظ التعديلات' : 'إضافة العضو'}</button>
             </div>
           </div>
         )}
       </main>
 
       <footer className="fixed bottom-0 left-0 right-0 p-4 pb-8 border-t border-white/5 bg-[#0B0E11]/90 backdrop-blur-xl flex justify-around items-end z-[100]">
-         <div onClick={() => setActiveTab('TASKS')} className={`flex flex-col items-center gap-1 cursor-pointer transition-all duration-300 ${activeTab === 'TASKS' ? 'text-[#00E5FF] scale-110' : 'text-slate-500'}`}> 
-            <span className={`material-symbols-outlined ${activeTab === 'TASKS' ? 'icon-fill' : ''}`}>assignment</span> 
-            <span className="text-[9px] font-black uppercase tracking-tighter">المهام</span> 
+         {activeUser?.role === 'COMMITTEE_HEAD' && (
+           <div onClick={() => setActiveTab('TEAM')} className={`flex flex-col items-center gap-1 cursor-pointer transition-all duration-300 ${activeTab === 'TEAM' ? 'text-[#00E5FF] scale-110' : 'text-slate-500'}`}> 
+              <span className={`material-symbols-outlined ${activeTab === 'TEAM' ? 'icon-fill' : ''}`}>groups</span> 
+              <span className="text-[9px] font-black uppercase tracking-tighter">لجنتي</span> 
+           </div>
+         )}
+         <div onClick={() => { setSettingsForm({ name: activeUser.name || '', phone: activeUser.phone || '', password: '', photo: activeUser.photo || '' }); setActiveTab('SETTINGS'); }} className={`flex flex-col items-center gap-1 cursor-pointer transition-all duration-300 ${activeTab === 'SETTINGS' ? 'text-[#00E5FF] scale-110' : 'text-slate-500'}`}> 
+            <span className={`material-symbols-outlined ${activeTab === 'SETTINGS' ? 'icon-fill' : ''}`}>settings</span> 
+            <span className="text-[9px] font-black uppercase tracking-tighter">الإعدادات</span> 
+         </div>
+         <div className="group relative">
+            <div 
+              className={`w-14 h-14 bg-gradient-to-tr from-[#00E5FF] to-[#00B8D4] rounded-full flex items-center justify-center -translate-y-4 shadow-[0_10px_30px_rgba(0,229,255,0.4)] border-4 border-[#0B0E11] active:scale-90 transition-all cursor-pointer ${showQuickAdd ? 'rotate-45 !from-red-500 !to-red-600' : ''}`} 
+              onClick={() => {
+                if (activeCampaigns.length === 1) {
+                  setShowQuickAdd(!showQuickAdd);
+                } else {
+                  setActiveTab('CAMPAIGNS');
+                  setOpStatus('⚠️ يرجى اختيار الحملة أولاً');
+                  setTimeout(() => setOpStatus(''), 3000);
+                }
+              }}
+            > 
+               <span className="material-symbols-outlined text-slate-950 font-black text-2xl">{showQuickAdd ? 'close' : 'add'}</span> 
+            </div>
          </div>
          <div onClick={() => setActiveTab('CAMPAIGNS')} className={`flex flex-col items-center gap-1 cursor-pointer transition-all duration-300 ${activeTab === 'CAMPAIGNS' ? 'text-[#00E5FF] scale-110' : 'text-slate-500'}`}> 
             <span className={`material-symbols-outlined ${activeTab === 'CAMPAIGNS' ? 'icon-fill' : ''}`}>campaign</span> 
             <span className="text-[9px] font-black uppercase tracking-tighter">الحملات</span> 
-         </div>
-         <div className="group relative">
-            <div className="w-14 h-14 bg-gradient-to-tr from-[#00E5FF] to-[#00B8D4] rounded-full flex items-center justify-center -translate-y-4 shadow-[0_10px_30px_rgba(0,229,255,0.4)] border-4 border-[#0B0E11] active:scale-90 transition-all cursor-pointer" onClick={() => setAddingNewOp(true)}> 
-               <span className="material-symbols-outlined text-slate-950 font-black text-2xl">add</span> 
-            </div>
          </div>
          <div onClick={() => setActiveTab('DASHBOARD')} className={`flex flex-col items-center gap-1 cursor-pointer transition-all duration-300 ${activeTab === 'DASHBOARD' ? 'text-[#00E5FF] scale-110' : 'text-slate-500'}`}> 
             <span className={`material-symbols-outlined ${activeTab === 'DASHBOARD' ? 'icon-fill' : ''}`}>dashboard</span> 
             <span className="text-[9px] font-black uppercase tracking-tighter">الرئيسية</span> 
          </div>
       </footer>
+
+      {showQuickAdd && activeCampaigns.length === 1 && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-end justify-center pb-32 animate-fade-in" onClick={() => setShowQuickAdd(false)}>
+          <div className="w-[85%] bg-[#15191C] border border-white/10 rounded-[2.5rem] p-6 flex flex-col gap-4 shadow-2xl animate-enter" onClick={e => e.stopPropagation()}>
+             <div className="text-center mb-2">
+                <div className="text-[10px] text-[#00E5FF] font-black uppercase tracking-widest leading-none mb-1">إضافة سريعة للحملة</div>
+                <div className="text-sm font-bold text-white truncate">{activeCampaigns[0].name}</div>
+             </div>
+             <button onClick={() => { setFocusedCampaign(activeCampaigns[0]); setAddingCemetery(true); setShowQuickAdd(false); }} className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl active:scale-95 transition-all text-right" dir="rtl">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-2xl bg-[#00E5FF]/10 flex items-center justify-center border border-[#00E5FF]/20">
+                      <span className="material-symbols-outlined text-[#00E5FF]">mosque</span>
+                   </div>
+                   <div className="flex flex-col">
+                      <span className="text-sm font-black text-white">إضافة مقبرة</span>
+                      <span className="text-[9px] text-slate-500 font-bold">تسجيل موقع مسحي جديد</span>
+                   </div>
+                </div>
+                <span className="material-symbols-outlined text-[#00E5FF] opacity-30">arrow_back</span>
+             </button>
+             <button onClick={() => { setFocusedCampaign(activeCampaigns[0]); setOpForm({ ...opForm, campaignId: activeCampaigns[0].id, city: activeCampaigns[0].city }); setAddingNewOp(true); setShowQuickAdd(false); }} className="flex items-center justify-between p-5 bg-white/5 border border-white/10 rounded-3xl active:scale-95 transition-all text-right" dir="rtl">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                      <span className="material-symbols-outlined text-purple-400">assignment</span>
+                   </div>
+                   <div className="flex flex-col">
+                      <span className="text-sm font-black text-white">إضافة حالة</span>
+                      <span className="text-[9px] text-slate-500 font-bold">بدء مهمة تتبع استخباري</span>
+                   </div>
+                </div>
+                <span className="material-symbols-outlined text-purple-400 opacity-30">arrow_back</span>
+             </button>
+             <button onClick={() => setShowQuickAdd(false)} className="mt-2 py-3 text-slate-500 font-black text-[10px] uppercase tracking-widest active:text-white transition-colors">إلغاء العملية</button>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
         .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }

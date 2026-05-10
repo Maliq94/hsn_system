@@ -5,10 +5,11 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
   const [showMemberForm, setShowMemberForm] = useState(false)
   const [loading, setLoading] = useState(false)
   
-  const defaultMemberForm = { id: '', name: '', phone: '', whatsapp: '', committee: committees[0]?.name || '', password: '', status: 'ACTIVE' }
+  const defaultMemberForm = { id: '', name: '', phone: '', whatsapp: '', committee: committees[0]?.name || '', password: '', status: 'ACTIVE', role: 'MEMBER' }
   const [memberFormData, setMemberFormData] = useState(defaultMemberForm)
 
   const [searchQuery, setSearchQuery] = useState(initialSearch)
+  const [viewMode, setViewMode] = useState('LIST')
 
   const handleExport = () => {
     const data = filteredMembers.map(m => ({
@@ -43,7 +44,8 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
       whatsapp: m.whatsapp || '',
       committee: m.committee || (committees[0]?.name || ''),
       password: '',
-      status: m.status || 'ACTIVE'
+      status: m.status || 'ACTIVE',
+      role: m.role || 'MEMBER'
     })
     setShowMemberForm(true)
   }
@@ -72,6 +74,18 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
           <p className="text-outline text-sm mt-1">إدارة بيانات المختصين وحالات الاتصال العملياتي</p>
         </div>
         <div className="flex gap-4">
+           {/* View Toggle */}
+           <div className="flex bg-[#15191C] border border-[#2D3339] p-1 rounded-xl mr-4">
+              <button onClick={() => setViewMode('LIST')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm transition-all ${viewMode === 'LIST' ? 'bg-[#00E5FF] text-[#0f172a] font-bold' : 'text-slate-500 hover:text-white'}`}>
+                <span className="material-symbols-outlined text-[18px]">format_list_bulleted</span>
+                قائمة
+              </button>
+              <button onClick={() => setViewMode('GRID')} className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm transition-all ${viewMode === 'GRID' ? 'bg-[#00E5FF] text-[#0f172a] font-bold' : 'text-slate-500 hover:text-white'}`}>
+                <span className="material-symbols-outlined text-[18px]">grid_view</span>
+                صور
+              </button>
+           </div>
+
            <div className="relative">
               <span className="material-symbols-outlined absolute right-3 top-2.5 text-slate-500">search</span>
               <input 
@@ -132,6 +146,15 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
               </div>
 
               <div>
+                 <label className="text-xs text-slate-500 mb-1 block">الصلاحية (الرتبة)</label>
+                 <select value={memberFormData.role} onChange={e=>setMemberFormData({...memberFormData, role: e.target.value})} className="w-full bg-[#0B0E11] border border-[#2D3339] p-4 rounded-xl text-white outline-none focus:border-[#00E5FF]">
+                    <option value="MEMBER">عضو لجنة (مختص ميداني)</option>
+                    <option value="COMMITTEE_HEAD">رئيس لجنة (إشراف ميداني)</option>
+                    <option value="ADMIN">مدير نظام (تحكم كامل)</option>
+                 </select>
+              </div>
+
+              <div>
                  <label className="text-xs text-slate-500 mb-1 block">الحالة التشغيلية</label>
                  <select value={memberFormData.status} onChange={e=>setMemberFormData({...memberFormData, status: e.target.value})} className="w-full bg-[#0B0E11] border border-[#2D3339] p-4 rounded-xl text-white outline-none focus:border-[#00E5FF]">
                     <option value="ACTIVE">نشط (متاح للميدان)</option>
@@ -147,12 +170,15 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
            </form>
         </div>
       ) : (
-        <div className="bg-[#15191C] border border-[#2D3339] rounded-2xl overflow-hidden shadow-2xl">
-          <table className="w-full text-right border-collapse">
+        <>
+          {viewMode === 'LIST' ? (
+            <div className="bg-[#15191C] border border-[#2D3339] rounded-2xl overflow-hidden shadow-2xl">
+              <table className="w-full text-right border-collapse">
             <thead className="bg-[#0B0E11] text-slate-500 text-xs border-b border-[#2D3339]">
               <tr>
                 <th className="p-5 font-bold">المختص الميداني</th>
                 <th className="p-5 font-bold">اللجنة / الوحدة</th>
+                <th className="p-5 font-bold">الرتبة</th>
                 <th className="p-5 font-bold">بيانات الاتصال</th>
                 <th className="p-5 font-bold">الحالة</th>
                 <th className="p-5 font-bold text-center">إجراءات</th>
@@ -175,6 +201,11 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
                   <td className="p-5">
                     <span className="bg-white/5 border border-white/10 px-3 py-1 rounded-full text-xs text-slate-300">{m.committee || 'غير مصنف'}</span>
                   </td>
+                  <td className="p-5">
+                    <span className={`px-3 py-1 rounded-full text-[10px] font-black border ${m.role === 'COMMITTEE_HEAD' ? 'border-purple-500/30 text-purple-400 bg-purple-500/5' : (m.role === 'ADMIN' ? 'border-[#00E5FF]/30 text-[#00E5FF] bg-[#00E5FF]/5' : 'border-slate-700 text-slate-500')}`}>
+                       {m.role === 'COMMITTEE_HEAD' ? 'رئيس لجنة' : (m.role === 'ADMIN' ? 'مدير نظام' : 'عضو لجنة')}
+                    </span>
+                  </td>
                   <td className="p-5 font-mono text-sm" dir="ltr">{m.phone}</td>
                   <td className="p-5">
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border ${m.status === 'ACTIVE' ? 'border-success-container/50 text-success-container bg-success-container/10' : 'border-error/50 text-error bg-error/10'}`}>
@@ -193,12 +224,45 @@ export default function MembersView({ members = [], committees = [], onRefresh, 
               ))}
               {filteredMembers.length === 0 && (
                 <tr>
-                   <td colSpan="5" className="p-20 text-center text-slate-600 italic">لا توجد نتائج مطابقة للبحث</td>
+                   <td colSpan="6" className="p-20 text-center text-slate-600 italic">لا توجد نتائج مطابقة للبحث</td>
                 </tr>
               )}
             </tbody>
           </table>
-        </div>
+          </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 p-6">
+              {filteredMembers.map(m => (
+                <div key={m.id} className="bg-[#15191C] border border-[#2D3339] rounded-[2rem] p-5 flex flex-col items-center group relative overflow-hidden shadow-lg hover:border-[#00E5FF]/40 transition-all">
+                   <div className="w-full aspect-square rounded-[1.5rem] bg-[#0B0E11] border-2 border-[#00E5FF]/10 overflow-hidden mb-4 relative z-10 group-hover:scale-105 transition-transform">
+                      {m.photo ? <img src={m.photo} className="w-full h-full object-cover"/> : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined text-5xl text-slate-700">person</span></div>}
+                   </div>
+                   <div className="text-center">
+                      <div className="text-lg font-black text-white mb-1">{m.name}</div>
+                      <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{m.committee || 'غير مصنف'}</div>
+                   </div>
+                   <div className="mt-4 flex gap-2">
+                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${m.role === 'COMMITTEE_HEAD' ? 'border-purple-500/30 text-purple-400 bg-purple-500/5' : (m.role === 'ADMIN' ? 'border-[#00E5FF]/30 text-[#00E5FF] bg-[#00E5FF]/5' : 'border-slate-700 text-slate-500')}`}>
+                          {m.role === 'COMMITTEE_HEAD' ? 'رئيس لجنة' : (m.role === 'ADMIN' ? 'مدير نظام' : 'عضو')}
+                       </span>
+                       <span className={`px-2 py-0.5 rounded-full text-[9px] font-black border ${m.status === 'ACTIVE' ? 'border-emerald-500/30 text-emerald-500' : 'border-red-500/30 text-red-500'}`}>
+                          {m.status === 'ACTIVE' ? 'نشط' : 'مجمد'}
+                       </span>
+                   </div>
+                   
+                   <div className="absolute inset-0 bg-[#00E5FF]/90 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center gap-6 z-20 backdrop-blur-sm">
+                       <button onClick={() => copyCredentials(m)} className="w-10 h-10 bg-[#0f172a] text-[#00E5FF] rounded-xl flex items-center justify-center shadow-lg active:scale-90" title="نسخ البيانات"><span className="material-symbols-outlined text-[20px]">key</span></button>
+                       <button onClick={() => handleEditMember(m)} className="w-10 h-10 bg-[#0f172a] text-[#00E5FF] rounded-xl flex items-center justify-center shadow-lg active:scale-90" title="تعديل الملف"><span className="material-symbols-outlined text-[20px]">edit</span></button>
+                       <button onClick={() => handleDeleteMember(m.id)} className="w-10 h-10 bg-[#0f172a] text-red-400 rounded-xl flex items-center justify-center shadow-lg active:scale-90" title="حذف العضو"><span className="material-symbols-outlined text-[20px]">delete</span></button>
+                   </div>
+                </div>
+              ))}
+              {filteredMembers.length === 0 && (
+                 <div className="col-span-full p-20 text-center text-slate-600 italic">لا توجد نتائج مطابقة للبحث</div>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   )
