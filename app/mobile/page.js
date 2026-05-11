@@ -31,6 +31,7 @@ export default function MobileSpecialistPage() {
   const [loadingAction, setLoadingAction] = useState(null)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [memberViewMode, setMemberViewMode] = useState('LIST'); // 'LIST' | 'GRID'
+  const [isLocating, setIsLocating] = useState(false);
   const timerRef = useRef(null)
   const caseHistoryRef = useRef(new Set())
   const isInitialLoad = useRef(true)
@@ -276,6 +277,7 @@ export default function MobileSpecialistPage() {
 
     setProcessing(true)
     setLoadingAction(mode)
+    if (mode === 'LOCATION') setIsLocating(true);
     
     // If entity has a location, we don't need to fetch GPS again unless explicitly requested (but centered around current anchor)
     if (entity.lat !== null && mode !== 'LOCATION') {
@@ -304,6 +306,7 @@ export default function MobileSpecialistPage() {
         setOpStatus(`❌ خطأ GPS: ${err.message || 'فشل التحديد'}`); 
         setProcessing(false);
         setLoadingAction(null); 
+        setIsLocating(false);
       }
     }
   }
@@ -346,6 +349,7 @@ export default function MobileSpecialistPage() {
     } catch(err) { setOpStatus('⚠️ خطأ شبكة') }
     setProcessing(false)
     setLoadingAction(null)
+    setIsLocating(false)
   }
 
   const createOp = async () => {
@@ -471,6 +475,9 @@ export default function MobileSpecialistPage() {
   const myCemCount = mainCampaign?.cemeteries?.filter(c => c.addedBy === activeUser.id).length || 0;
   const allCemCount = mainCampaign?.cemeteries?.length || 0;
 
+  const totalCampaignCemeteries = activeCampaigns.reduce((acc, c) => acc + (c.cemeteries?.length || 0), 0);
+  const totalCampaignCases = activeCampaigns.reduce((acc, c) => acc + (c.cases?.length || 0), 0);
+
   return (
     <div className="bg-[#0B0E11] min-h-screen text-white font-['Cairo'] pb-20" dir="rtl">
       <header className="p-4 border-b border-white/5 flex justify-between items-center bg-[#0B0E11]/80 backdrop-blur-xl sticky top-0 z-50">
@@ -494,6 +501,52 @@ export default function MobileSpecialistPage() {
       </header>
 
       <main className="p-5 flex flex-col gap-6">
+
+        {/* GPS LOCATING OVERLAY */}
+        {isLocating && (
+          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#0B0E11]/95 backdrop-blur-xl animate-fade-in" dir="rtl">
+            {/* Radar rings */}
+            <div className="relative flex items-center justify-center mb-10">
+              <div className="absolute w-72 h-72 rounded-full border border-[#00E5FF]/5 animate-ping" style={{animationDuration:'3s'}}></div>
+              <div className="absolute w-56 h-56 rounded-full border border-[#00E5FF]/10 animate-ping" style={{animationDuration:'2.3s'}}></div>
+              <div className="absolute w-40 h-40 rounded-full border border-[#00E5FF]/20 animate-ping" style={{animationDuration:'1.8s'}}></div>
+              <div className="absolute w-28 h-28 rounded-full border border-[#00E5FF]/30 animate-ping" style={{animationDuration:'1.3s'}}></div>
+
+              {/* Spinning arc */}
+              <div className="absolute w-32 h-32 rounded-full border-2 border-transparent border-t-[#00E5FF] border-r-[#00E5FF]/30 animate-spin" style={{animationDuration:'1.5s'}}></div>
+              <div className="absolute w-24 h-24 rounded-full border-2 border-transparent border-b-[#00E5FF]/50 border-l-[#00E5FF]/20 animate-spin" style={{animationDuration:'2.2s',animationDirection:'reverse'}}></div>
+
+              {/* Center icon */}
+              <div className="w-20 h-20 rounded-full bg-[#00E5FF]/10 border border-[#00E5FF]/30 flex items-center justify-center shadow-[0_0_40px_rgba(0,229,255,0.3)] relative z-10">
+                <span className="material-symbols-outlined text-[#00E5FF] text-4xl animate-pulse">my_location</span>
+              </div>
+            </div>
+
+            {/* Text block */}
+            <div className="text-center flex flex-col items-center gap-3">
+              <div className="text-[10px] font-black text-[#00E5FF] uppercase tracking-[0.4em] opacity-70">نظام تحديد الموقع</div>
+              <h2 className="text-3xl font-black text-white">جاري التحديد</h2>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-bounce" style={{animationDelay:'0ms'}}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-bounce" style={{animationDelay:'150ms'}}></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-[#00E5FF] animate-bounce" style={{animationDelay:'300ms'}}></span>
+              </div>
+              <p className="text-slate-500 text-sm font-bold mt-2">الرجاء الانتظار أثناء تثبيت إحداثيات الموقع</p>
+            </div>
+
+            {/* GPS signal bars */}
+            <div className="flex items-end gap-1.5 mt-10 h-8">
+              {[0.3, 0.5, 0.7, 1, 0.7, 0.5, 0.3].map((h, i) => (
+                <div key={i} className="w-1.5 bg-[#00E5FF] rounded-full animate-pulse"
+                  style={{height:`${h*100}%`, animationDelay:`${i*100}ms`, opacity: h}}></div>
+              ))}
+            </div>
+
+            {/* Bottom label */}
+            <div className="absolute bottom-16 text-[10px] text-slate-700 font-mono tracking-widest uppercase">GPS • HIGH ACCURACY • SECURE</div>
+          </div>
+        )}
+
         {activeTab === 'DASHBOARD' && (
           <div className="flex flex-col gap-8 animate-fade-in">
              <section className="flex flex-col gap-2 text-right">
@@ -555,10 +608,21 @@ export default function MobileSpecialistPage() {
         {/* CAMPAIGNS TAB */}
         {activeTab === 'CAMPAIGNS' && (
            <div className="flex flex-col gap-6 animate-fade-in">
-              <header className="mb-2 text-right">
-                 <h2 className="text-2xl font-black text-white">الحملات النشطة</h2>
-                 <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">المهمات المركزية والمسوحات</p>
-              </header>
+                             <header className="mb-2 text-right">
+                  <h2 className="text-2xl font-black text-white">الحملات النشطة</h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-1">المهمات المركزية والمسوحات</p>
+               </header>
+
+               <div className="grid grid-cols-2 gap-4 mb-2">
+                  <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] flex flex-col items-center justify-center gap-1">
+                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">إجمالي المقابر</span>
+                     <span className="text-xl font-black text-[#00E5FF]">{totalCampaignCemeteries}</span>
+                  </div>
+                  <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] flex flex-col items-center justify-center gap-1">
+                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">إجمالي الحالات</span>
+                     <span className="text-xl font-black text-[#00E5FF]">{totalCampaignCases}</span>
+                  </div>
+               </div>
 
               {activeCampaigns.map(camp => (
                  <div key={camp.id} onClick={() => setFocusedCampaign(camp)} className="bg-white/5 border border-white/10 p-6 rounded-[2rem] active:scale-95 transition-all text-right shadow-lg">
@@ -834,6 +898,16 @@ export default function MobileSpecialistPage() {
               </header>
 
               <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-8 pb-32">
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] flex flex-col items-center justify-center gap-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">المقابر</span>
+                        <span className="text-xl font-black text-[#00E5FF]">{focusedCampaign.cemeteries?.length || 0}</span>
+                     </div>
+                     <div className="bg-white/5 border border-white/10 p-5 rounded-[2rem] flex flex-col items-center justify-center gap-1">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">الحالات</span>
+                        <span className="text-xl font-black text-[#00E5FF]">{focusedCampaign.cases?.length || 0}</span>
+                     </div>
+                  </div>
                  <section className="bg-white/5 border border-white/10 p-7 rounded-[2.5rem] relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-[#00E5FF]/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
                     <h3 className="text-[10px] font-black text-[#00E5FF] uppercase tracking-[0.2em] mb-4">أهداف الحملة</h3>
