@@ -6,10 +6,26 @@ const mapVisit = (v) => ({
   cemetery: v.cemetery
 });
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const visit = await prisma.visit.findUnique({
+        where: { id },
+        include: { user: true, Renamedcase: true, cemetery: true }
+      });
+      return Response.json(mapVisit(visit));
+    }
+
     const visits = await prisma.visit.findMany({
-      include: { user: true, Renamedcase: true, cemetery: true },
+      select: {
+        id: true, userId: true, caseId: true, cemeteryId: true,
+        lat: true, lng: true, notes: true, timestamp: true,
+        user: true, Renamedcase: true, cemetery: true
+        // Exclude: images, videos, voiceData
+      },
       orderBy: { timestamp: 'desc' }
     });
     return Response.json(visits.map(mapVisit));

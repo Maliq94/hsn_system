@@ -32,6 +32,7 @@ export default function MobileSpecialistPage() {
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [memberViewMode, setMemberViewMode] = useState('LIST'); // 'LIST' | 'GRID'
   const [isLocating, setIsLocating] = useState(false);
+  const [syncEnabled, setSyncEnabled] = useState(true);
   const timerRef = useRef(null)
   const caseHistoryRef = useRef(new Set())
   const isInitialLoad = useRef(true)
@@ -110,10 +111,12 @@ export default function MobileSpecialistPage() {
     setupPerms()
 
     const interval = setInterval(() => {
-      syncOperations(activeUser.id)
+      if (syncEnabled) {
+        syncOperations(activeUser.id)
+      }
     }, 10000) // 10s heartbeat for multi-member sync
     return () => clearInterval(interval)
-  }, [activeUser, focusedCase])
+  }, [activeUser, focusedCase, syncEnabled])
 
   const syncOperations = async (userId) => {
     try {
@@ -174,7 +177,7 @@ export default function MobileSpecialistPage() {
       // If a case is open, update its detailed data with strict anchor check
       if (focusedCase) {
         const updated = assigned.find(c => c.id === focusedCase.id)
-        if (updated) setFocusedCase(updated)
+        if (updated) setFocusedCase(prev => ({ ...prev, ...updated }))
       }
 
       // If a campaign is open, update it
@@ -185,11 +188,29 @@ export default function MobileSpecialistPage() {
           // Keep cemetery details in sync if open
           if (focusedCemetery) {
             const cem = updated.cemeteries?.find(x => x.id === focusedCemetery.id)
-            if (cem) setFocusedCemetery(cem)
+            if (cem) setFocusedCemetery(prev => ({ ...prev, ...cem }))
           }
         }
       }
     } catch(err) { console.error('Sync Error:', err) }
+  }
+
+  const selectCase = async (cs) => {
+    setFocusedCase(cs);
+    try {
+      const res = await fetch(`/api/cases?id=${cs.id}`);
+      const data = await res.json();
+      setFocusedCase(data);
+    } catch(err) { console.error("LOAD CASE ERR:", err) }
+  }
+
+  const selectCemetery = async (cem) => {
+    setFocusedCemetery(cem);
+    try {
+      const res = await fetch(`/api/cemeteries?id=${cem.id}`);
+      const data = await res.json();
+      setFocusedCemetery(data);
+    } catch(err) { console.error("LOAD CEM ERR:", err) }
   }
 
   const execLogin = async (e) => {
@@ -497,7 +518,20 @@ export default function MobileSpecialistPage() {
             </div>
           </div>
         </div>
-        <button onClick={()=>{localStorage.removeItem('hsn_user'); setActiveUser(null);}} className="text-slate-500 hover:text-red-500 transition-colors p-2"><span className="material-symbols-outlined">logout</span></button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setSyncEnabled(!syncEnabled)} 
+            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all border ${syncEnabled ? 'bg-[#00E5FF]/10 border-[#00E5FF]/30 text-[#00E5FF]' : 'bg-slate-800 border-slate-700 text-slate-500 opacity-50'}`}
+            title={syncEnabled ? "تعطيل المزامنة التلقائية" : "تفعيل المزامنة التلقائية"}
+          >
+            <span className={`material-symbols-outlined text-xl ${syncEnabled ? 'animate-pulse' : ''}`}>
+              {syncEnabled ? 'sync' : 'sync_disabled'}
+            </span>
+          </button>
+          <button onClick={()=>{localStorage.removeItem('hsn_user'); setActiveUser(null);}} className="text-slate-500 hover:text-red-500 transition-colors p-2">
+            <span className="material-symbols-outlined">logout</span>
+          </button>
+        </div>
       </header>
 
       <main className="p-5 flex flex-col gap-6">
@@ -921,7 +955,7 @@ export default function MobileSpecialistPage() {
                     </h3>
                     <div className="flex flex-col gap-3">
                        {focusedCampaign.cemeteries?.map(cem => (
-                           <div key={cem.id} onClick={() => setFocusedCemetery(cem)} className="bg-[#1A1F24] border border-white/5 p-5 rounded-[1.8rem] flex justify-between items-center active:scale-95 transition-all">
+                           <div key={cem.id} onClick={() => selectCemetery(cem)} className="bg-[#1A1F24] border border-white/5 p-5 rounded-[1.8rem] flex justify-between items-center active:scale-95 transition-all">
                               <div className="flex items-center gap-4">
                                  <div className={`w-11 h-11 rounded-2xl flex items-center justify-center border shadow-inner ${cem.lat ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-red-500/10 border-red-500/20'}`}>
                                     <span className={`material-symbols-outlined text-[20px] ${cem.lat ? 'text-emerald-500' : 'text-red-500 animate-pulse'}`}>{cem.lat ? 'location_on' : 'location_disabled'}</span>
@@ -952,7 +986,7 @@ export default function MobileSpecialistPage() {
                     </h3>
                     <div className="flex flex-col gap-3">
                        {focusedCampaign.cases?.map(cs => (
-                          <div key={cs.id} className="bg-[#1A1F24] border border-white/5 p-5 rounded-[1.8rem] flex justify-between items-center active:bg-white/[0.02]" onClick={() => setFocusedCase(cs)}>
+                          <div key={cs.id} className="bg-[#1A1F24] border border-white/5 p-5 rounded-[1.8rem] flex justify-between items-center active:bg-white/[0.02]" onClick={() => selectCase(cs)}>
                              <div className="flex items-center gap-4">
                                 <div className="w-11 h-11 rounded-2xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
                                    <span className="material-symbols-outlined text-purple-500 text-[20px]">assignment</span>

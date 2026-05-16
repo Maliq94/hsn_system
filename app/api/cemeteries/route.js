@@ -4,11 +4,25 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url)
     const campaignId = searchParams.get('campaignId')
+    const id = searchParams.get('id')
     
+    if (id) {
+      const cemetery = await prisma.cemetery.findUnique({
+        where: { id },
+        include: { user: true, campaign: true, visits: { include: { user: true } } }
+      })
+      return Response.json(cemetery)
+    }
+
     const where = campaignId ? { campaignId } : {}
     const cemeteries = await prisma.cemetery.findMany({
       where,
-      include: { user: true, campaign: true },
+      select: {
+        id: true, name: true, campaignId: true, lat: true, lng: true,
+        notes: true, status: true, addedBy: true, createdAt: true,
+        user: true, campaign: true
+        // Exclude: images, voiceData
+      },
       orderBy: { createdAt: 'desc' }
     })
     return Response.json(cemeteries)

@@ -5,8 +5,30 @@ export async function GET() {
     const campaigns = await prisma.campaign.findMany({
       include: {
         members: { include: { user: true } },
-        cemeteries: { include: { user: true, visits: { include: { user: true } } } },
-        cases: { include: { caseassignment: { include: { user: true } }, visit: { include: { user: true } } } }
+        cemeteries: { 
+          include: { 
+            user: true, 
+            visits: { 
+              select: { 
+                id: true, userId: true, caseId: true, cemeteryId: true, 
+                lat: true, lng: true, notes: true, timestamp: true, user: true 
+                // Exclude: images, videos, voiceData
+              } 
+            } 
+          } 
+        },
+        cases: { 
+          include: { 
+            caseassignment: { include: { user: true } }, 
+            visit: { 
+              select: { 
+                id: true, userId: true, caseId: true, cemeteryId: true, 
+                lat: true, lng: true, notes: true, timestamp: true, user: true 
+                // Exclude: images, videos, voiceData
+              } 
+            } 
+          } 
+        }
       },
       orderBy: { createdAt: 'desc' }
     })

@@ -6,12 +6,32 @@ const mapCase = (c) => ({
   visits: c.visit
 });
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (id) {
+      const targetCase = await prisma.renamedcase.findUnique({
+        where: { id },
+        include: {
+          caseassignment: { include: { user: true } },
+          visit: { include: { user: true } }
+        }
+      });
+      return Response.json(mapCase(targetCase));
+    }
+
     const cases = await prisma.renamedcase.findMany({
       include: {
         caseassignment: { include: { user: true } },
-        visit: { include: { user: true } }
+        visit: { 
+          select: {
+            id: true, userId: true, caseId: true, cemeteryId: true,
+            lat: true, lng: true, notes: true, timestamp: true, user: true
+            // Exclude: images, videos, voiceData
+          }
+        }
       },
       orderBy: { createdAt: 'desc' }
     });
